@@ -3,6 +3,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
 require('dotenv').config();
 
 // Import infrastructure
@@ -19,32 +20,64 @@ const OfferController = require('./src/controllers/OfferController');
 const ChatController = require('./src/controllers/ChatController');
 const AdminController = require('./src/controllers/AdminController');
 
+// Configuración básica
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'sistema_enturnamiento_secret_2024';
+
+// 🔥 Orígenes permitidos (CORS)
+const allowedOrigins = [
+  'https://vehiculos-enturnamiento.vercel.app',    // Frontend en Vercel
+  'https://vehiculos-enturnamiento.onrender.com',  // Backend (por si hace requests a sí mismo)
+  'http://localhost:3000',                         // Desarrollo local
+  'http://127.0.0.1:3000'
+];
+
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
 
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'sistema_enturnamiento_secret_2024';
+// ===============================
+// CORS MIDDLEWARE CORRECTO
+// ===============================
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permite llamadas sin origin (curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.log('❌ CORS bloqueado para origen:', origin);
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Para preflight OPTIONS
+app.options('*', cors());
+
+// JSON y archivos estáticos
+app.use(express.json());
+app.use(express.static('public')); // Serve frontend files from public directory
 
 // Map userId -> socket id for real-time chat
 const connectedUsers = new Map();
 
 // ===============================
-// MIDDLEWARES
+// SOCKET.IO - con CORS correcto
 // ===============================
-app.use(express.json());
-app.use(express.static('public')); // Serve frontend files from public directory
-
-// CORS configuration
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://vehiculos-enturnamiento.onrender.com');
-  res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  }
 });
 
+// ===============================
+// RUTAS HTTP
+// ===============================
 
 // Health check
 app.get('/api/status', async (req, res) => {
@@ -114,7 +147,6 @@ app.put('/api/users/:id/role', authenticateToken, AdminController.updateUserRole
 app.put('/api/users/:id/state', authenticateToken, AdminController.updateUserState);
 app.get('/api/admin/logs', authenticateToken, AdminController.getSystemLogs);
 app.get('/api/admin/statistics', authenticateToken, AdminController.getSystemStatistics);
-
 
 app.get('/api/admin/cities', authenticateToken, async (req, res) => {
   try {
@@ -340,7 +372,6 @@ async function initializeDatabase() {
       )
     `);
 
-    // Create other tables...
     // Create cities and routes tables (admin panel)
     await query(`
       CREATE TABLE IF NOT EXISTS cities (
