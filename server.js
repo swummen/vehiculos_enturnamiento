@@ -24,7 +24,7 @@ const AdminController = require('./src/controllers/AdminController');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'sistema_enturnamiento_secret_2024';
 
-// 🔥 Orígenes permitidos (CORS)
+// Orígenes permitidos (CORS)
 const allowedOrigins = [
   'https://vehiculos-enturnamiento.vercel.app',    // Frontend en Vercel
   'https://vehiculos-enturnamiento.onrender.com',  // Backend (por si hace requests a sí mismo)
@@ -292,9 +292,7 @@ app.delete('/api/admin/routes/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ===============================
 // SOCKET.IO - REAL-TIME CHAT
-// ===============================
 io.on('connection', (socket) => {
   const token = socket.handshake.auth && socket.handshake.auth.token;
   if (!token) return; // don't register anonymous sockets
