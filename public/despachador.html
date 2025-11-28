@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Despachador</title>
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <!-- Leaflet CSS for maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <div id="header-container"></div>
+  
+  <main class="main-content">
+    <div class="dashboard">
+      <div class="dashboard-header">
+        <h1>Panel del Despachador</h1>
+        <p>Contrata vehículos, monitorea flota en Google Maps y envía notificaciones en pantalla.</p>
+      </div>
+
+      <!-- Filters Section -->
+      <div class="dashboard-section">
+        <h2>Filtros de Búsqueda</h2>
+        <div class="filters-container">
+          <div class="filter-group">
+            <label>Ciudad:</label>
+            <select id="cityFilter" onchange="applyFilters()">
+              <option value="">Todas las ciudades</option>
+              <option value="Bogotá">Bogotá</option>
+              <option value="Medellín">Medellín</option>
+              <option value="Cali">Cali</option>
+              <option value="Barranquilla">Barranquilla</option>
+              <option value="Cartagena">Cartagena</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Tipo de Vehículo:</label>
+            <select id="vehicleTypeFilter" onchange="applyFilters()">
+              <option value="">Todos los tipos</option>
+              <option value="Camión">Camión</option>
+              <option value="Bus">Bus</option>
+              <option value="Camioneta">Camioneta</option>
+              <option value="Van">Van</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Estado:</label>
+            <select id="statusFilter" onchange="applyFilters()">
+              <option value="">Todos los estados</option>
+              <option value="Disponible">Disponible</option>
+              <option value="En viaje">En viaje</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-two">
+        <div class="dashboard-section map-card">
+          <div class="map-header">
+            <div>
+              <strong>Flota disponible</strong>
+              <p style="margin:4px 0 0; color: var(--muted);">Ubicación en vivo de todos los vehículos</p>
+            </div>
+            <span class="badge">Maps API</span>
+          </div>
+          <div id="dispatcher-map"></div>
+        </div>
+
+        <div class="dashboard-section">
+          <h2>Notificaciones en Tiempo Real</h2>
+          <div id="dispatcher-inbox" class="timeline">
+            <div class="timeline-item">Cargando notificaciones...</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dashboard-section">
+        <h3>Conductores Disponibles</h3>
+        <div id="available-drivers-list" class="drivers-list">
+          <div class="loading">Cargando conductores disponibles...</div>
+        </div>
+      </div>
+
+      <div class="dashboard-section">
+        <h3>Historial de Contrataciones</h3>
+        <div id="hiring-history">
+          <div class="loading">Cargando historial...</div>
+        </div>
+      </div>
+
+      <div class="dashboard-section">
+        <h3>Contrataciones Activas</h3>
+        <div id="active-contracts">
+          <div class="loading">Cargando contratos...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-container"></div>
+
+  <!-- Chat modal -->
+  <div id="chat-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:600px;">
+      <span class="close" onclick="document.getElementById('chat-modal').style.display='none'">&times;</span>
+      <h3>Chat con usuario <span id="chat-with-id"></span></h3>
+      <div id="chat-messages"
+        style="max-height:300px; overflow:auto; border:1px solid var(--border); padding:12px; background:white; margin-bottom:8px;">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input id="chat-input" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border)"
+          placeholder="Escribe un mensaje...">
+        <button class="btn btn-primary" onclick="sendChat()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hire Driver Modal -->
+  <div id="hire-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:500px;">
+      <span class="close" onclick="document.getElementById('hire-modal').style.display='none'">&times;</span>
+      <h3>Contratar Conductor</h3>
+      <div id="hire-driver-info"></div>
+      <div style="margin-top:16px;">
+        <label>Mensaje para el conductor:</label>
+        <textarea id="hire-message" style="width:100%; height:80px; margin:8px 0; padding:8px; border:1px solid var(--border); border-radius:4px;" 
+          placeholder="Detalles del trabajo, ubicación, horarios..."></textarea>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn" onclick="document.getElementById('hire-modal').style.display='none'">Cancelar</button>
+          <button class="btn btn-primary" onclick="confirmHire()">Enviar Oferta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <!-- Leaflet JS for maps -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  
+  <script>
+    let map;
+    let markers = [];
+    let selectedDriver = null;
+    let currentFilters = {};
+
+    // Load Leaflet maps (free with OpenStreetMap)
+    function loadMapLibrary() {
+      if (window.L) {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        // Leaflet is already loaded from CDN in the header
+        if (typeof L !== 'undefined') {
+          resolve();
+        } else {
+          // Fallback: try loading again
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => resolve();
+          document.head.appendChild(script);
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!navigationSystem.ensureAuthenticated(['despachador'])) return;
+      
+      // Load Leaflet first, then initialize the dispatcher panel
+      await loadMapLibrary();
+      initializeDispatcherPanel();
+    });
+
+    function initializeDispatcherPanel() {
+      // Load initial data
+      loadAvailableDrivers();
+      loadHiringHistory();
+      loadActiveContracts();
+      initializeMap();
+      
+      // Set up periodic updates
+      setInterval(loadAvailableDrivers, 30000); // Update every 30 seconds
+      setInterval(loadHiringHistory, 60000); // Update every minute
+      setInterval(updateMapView, 30000); // Update map every 30 seconds
+      
+      // Set up WebSocket for real-time notifications
+      setupWebSocket();
+    }
+
+    async function loadAvailableDrivers() {
+      try {
+        // Try new endpoint first, fall back to existing one
+        let response;
+        try {
+          response = await API.request('/vehicles/available-drivers');
+        } catch (error) {
+          console.log('New endpoint failed, trying fallback...');
+          response = await API.request('/vehicles?estado=Disponible');
+        }
+        
+        if (response.success) {
+          renderAvailableDrivers(response.vehicles || []);
+        } else {
+          console.error('Error loading available drivers:', response.message);
+        }
+      } catch (error) {
+        console.error('Error loading available drivers:', error);
+        // Show fallback message
+        const container = document.getElementById('available-drivers-list');
+        container.innerHTML = '<div class="empty-state">Funciones avanzadas en desarrollo. Usa el panel básico para gestionar conductores.</div>';
+      }
+    }
+
+    function renderAvailableDrivers(vehicles) {
+      const container = document.getElementById('available-drivers-list');
+      
+      if (vehicles.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay conductores disponibles</div>';
+        return;
+      }
+
+      container.innerHTML = vehicles.map(vehicle => `
+        <div class="driver-card" data-driver-id="${vehicle.conductor_id}">
+          <div class="driver-info">
+            <h4>${vehicle.conductor_nombre}</h4>
+            <p><strong>Vehículo:</strong> ${vehicle.placa} - ${vehicle.tipo_vehiculo}</p>
+            <p><strong>Ciudad:</strong> ${vehicle.ciudad_origen}</p>
+            <p><strong>Teléfono:</strong> ${vehicle.conductor_telefono}</p>
+            <p><strong>Estado:</strong> <span class="status-badge status-${vehicle.estado.toLowerCase().replace(' ', '-')}">${vehicle.estado}</span></p>
+          </div>
+          <div class="driver-actions">
+            <button class="btn btn-primary" onclick="openHireModal(${vehicle.conductor_id}, ${vehicle.id})">
+              Contratar
+            </button>
+            <button class="btn" onclick="openChatWith(${vehicle.conductor_id})">
+              Enviar Mensaje
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openHireModal(driverId, vehicleId) {
+      // Find the driver data
+      const driverCard = document.querySelector(`[data-driver-id="${driverId}"]`);
+      if (driverCard) {
+        const driverName = driverCard.querySelector('h4').textContent;
+        const vehicleInfo = driverCard.querySelector('p').textContent;
+        
+        selectedDriver = { driverId, vehicleId };
+        
+        const infoHtml = `
+          <p><strong>Conductor:</strong> ${driverName}</p>
+          <p><strong>${vehicleInfo}</strong></p>
+        `;
+        
+        document.getElementById('hire-driver-info').innerHTML = infoHtml;
+        document.getElementById('hire-modal').style.display = 'block';
+      }
+    }
+
+    async function confirmHire() {
+      if (!selectedDriver) return;
+      
+      const mensaje = document.getElementById('hire-message').value.trim();
+      
+      try {
+        const response = await API.request('/offers', {
+          method: 'POST',
+          body: JSON.stringify({
+            conductor_id: selectedDriver.driverId,
+            vehicle_id: selectedDriver.vehicleId,
+            mensaje: mensaje || 'Oferta de contratación'
+          })
+        });
+        
+        if (response.success) {
+          notifications.show('Oferta enviada exitosamente', 'success');
+          document.getElementById('hire-modal').style.display = 'none';
+          document.getElementById('hire-message').value = '';
+          // Remove driver from available list immediately so it no longer appears as available
+          try {
+            const driverIdToRemove = selectedDriver ? selectedDriver.driverId : null;
+            if (driverIdToRemove) {
+              const card = document.querySelector(`[data-driver-id="${driverIdToRemove}"]`);
+              if (card && card.parentNode) card.parentNode.removeChild(card);
+            }
+          } catch (e) {}
+          selectedDriver = null;
+          loadActiveContracts();
+        } else {
+          notifications.show('Error al enviar oferta: ' + response.message, 'error');
+        }
+      } catch (error) {
+        console.error('Error sending offer:', error);
+        notifications.show('Error al enviar oferta', 'error');
+      }
+    }
+
+    async function loadHiringHistory() {
+      try {
+        // Try new endpoint first, fall back to existing one
+        let response;
+        try {
+          response = await API.request('/offers/hiring-history');
+        } catch (error) {
+          console.log('New endpoint failed, trying fallback...');
+          response = await API.request('/offers');
+        }
+        
+        if (response.success) {
+          renderHiringHistory(response.offers || []);
+        } else {
+          console.error('Error loading hiring history:', response.message);
+        }
+      } catch (error) {
+        console.error('Error loading hiring history:', error);
+        // Show fallback message
+        const container = document.getElementById('hiring-history');
+        container.innerHTML = '<div class="empty-state">Funciones avanzadas en desarrollo. El historial completo estará disponible próximamente.</div>';
+      }
+    }
+
+    function renderHiringHistory(offers) {
+      const container = document.getElementById('hiring-history');
+      
+      if (offers.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay historial de contrataciones</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="contracts-table">
+          <div class="table-header">
+            <div>Fecha</div>
+            <div>Conductor</div>
+            <div>Vehículo</div>
+            <div>Estado</div>
+            <div>Acciones</div>
+          </div>
+          ${offers.map(offer => `
+            <div class="table-row">
+              <div>${new Date(offer.fecha_creacion).toLocaleDateString()}</div>
+              <div>${offer.conductor_nombre || 'N/A'}</div>
+              <div>${offer.placa || 'N/A'} - ${offer.tipo_vehiculo || ''}</div>
+              <div>
+                <span class="status-badge status-${offer.estado}">
+                  ${offer.estado.charAt(0).toUpperCase() + offer.estado.slice(1)}
+                </span>
+              </div>
+              <div>
+                ${offer.conductor_id ? `<button class="btn btn-small" onclick="openChatWith(${offer.conductor_id})">Chat</button>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function loadActiveContracts() {
+      try {
+        const response = await API.request('/offers?estado=enviado');
+        if (response.success) {
+          renderActiveContracts(response.offers || []);
+        } else {
+          console.error('Error loading active contracts:', response.message);
+        }
+      } catch (error) {
+        console.error('Error loading active contracts:', error);
+      }
+    }
+
+    function renderActiveContracts(offers) {
+      const container = document.getElementById('active-contracts');
+      
+      if (offers.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay contrataciones activas</div>';
+        return;
+      }
+
+      container.innerHTML = offers.map(offer => `
+        <div class="contract-card">
+          <div class="contract-info">
+            <h4>Oferta #${offer.id}</h4>
+            <p><strong>Estado:</strong> ${offer.estado}</p>
+            <p><strong>Mensaje:</strong> ${offer.mensaje || 'Sin mensaje'}</p>
+            <p><strong>Fecha:</strong> ${new Date(offer.fecha_creacion).toLocaleString()}</p>
+          </div>
+          <div class="contract-actions">
+            <button class="btn" onclick="cancelOffer(${offer.id})">Cancelar</button>
+            <button class="btn btn-primary" onclick="openChatWith(${offer.conductor_id})">Chat</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function applyFilters() {
+      currentFilters = {
+        ciudad: document.getElementById('cityFilter').value,
+        tipo_vehiculo: document.getElementById('vehicleTypeFilter').value,
+        estado: document.getElementById('statusFilter').value
+      };
+      
+      loadAvailableDrivers();
+      updateMapView();
+    }
+
+    function initializeMap() {
+      const mapContainer = document.getElementById('dispatcher-map');
+      if (!mapContainer) return;
+
+      try {
+        // Initialize Leaflet map with OpenStreetMap
+        map = L.map('dispatcher-map').setView([4.711, -74.072], 6); // Bogotá, zoom level 6
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19
+        }).addTo(map);
+
+        // Load initial vehicles
+        updateMapView();
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        showMapFallback(mapContainer);
+      }
+    }
+
+    function showMapFallback(mapContainer) {
+      mapContainer.innerHTML = `
+        <div class="map-placeholder">
+          <h3>🗺️ Mapa de Flota</h3>
+          <p>Mapa con OpenStreetMap (100% Gratuito)</p>
+          <p><strong>Funciones disponibles:</strong></p>
+          <ul>
+            <li>✅ Vista en vivo de vehículos</li>
+            <li>✅ Zoom interactivo</li>
+            <li>✅ Información de vehículos al hacer clic</li>
+            <li>✅ Lista de conductores disponibles</li>
+            <li>✅ Sistema de contratación</li>
+            <li>✅ Chat en tiempo real</li>
+            <li>✅ Historial de contrataciones</li>
+            <li>✅ Filtros por ciudad y tipo</li>
+          </ul>
+        </div>
+      `;
+    }
+
+    async function updateMapView() {
+      if (!map) return;
+      
+      try {
+        const queryParams = new URLSearchParams(currentFilters).toString();
+        const endpoint = `/vehicles/map-view${queryParams ? '?' + queryParams : ''}`;
+        
+        const response = await API.request(endpoint);
+        
+        if (response.success && response.vehicles) {
+          renderMap(response.vehicles);
+        } else {
+          console.error('Error updating map:', response.message);
+        }
+      } catch (error) {
+        console.error('Error updating map:', error);
+      }
+    }
+
+    function renderMap(vehicles) {
+      // Clear existing markers
+      markers.forEach(marker => map.removeLayer(marker));
+      markers = [];
+
+      const bounds = [];
+
+      vehicles.forEach(vehicle => {
+        if (!vehicle.ubicacion_gps) return;
+        
+        const parts = vehicle.ubicacion_gps.split(',');
+        if (!parts || parts.length < 2) return;
+        
+        const lat = Number(parts[0].trim());
+        const lng = Number(parts[1].trim());
+        
+        if (!isFinite(lat) || !isFinite(lng)) return;
+
+        bounds.push([lat, lng]);
+
+        // Determine marker color based on status
+        const color = getVehicleMarkerColor(vehicle.estado);
+        
+        // Create a custom icon
+        const markerIcon = L.divIcon({
+          className: 'vehicle-marker',
+          html: `
+            <div style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50%; 
+                        border: 3px solid white; display: flex; align-items: center; justify-content: center;
+                        font-weight: bold; color: white; font-size: 16px;">
+              🚛
+            </div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+          popupAnchor: [0, -15]
+        });
+
+        const marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
+
+        const popupContent = `
+          <div style="font-size: 12px; max-width: 250px;">
+            <strong>${vehicle.placa}</strong><br>
+            <strong>Tipo:</strong> ${vehicle.tipo_vehiculo}<br>
+            <strong>Estado:</strong> <span style="color: ${color}; font-weight: bold;">${vehicle.estado}</span><br>
+            <strong>Conductor:</strong> ${vehicle.conductor_nombre || 'N/A'}<br>
+            <strong>Ciudad:</strong> ${vehicle.ciudad_origen}<br>
+            <strong>Teléfono:</strong> ${vehicle.conductor_telefono || 'N/A'}
+          </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        markers.push(marker);
+      });
+
+      // Fit map to all markers
+      if (bounds.length > 0) {
+        const featureGroup = L.featureGroup(markers);
+        map.fitBounds(featureGroup.getBounds().pad(0.1));
+      }
+    }
+
+    function getVehicleMarkerColor(status) {
+      switch(status) {
+        case 'Disponible':
+          return '#4CAF50'; // Green
+        // 'Contratado' state mapped to 'En viaje' at server side; keep marker color for 'En viaje'
+        case 'En viaje':
+          return '#FF9800'; // Orange
+        case 'Mantenimiento':
+          return '#F44336'; // Red
+        default:
+          return '#9C27B0'; // Purple
+      }
+    }
+
+    function setupWebSocket() {
+      if (typeof socket !== 'undefined' && socket) {
+        socket.on('offer_response', (data) => {
+          // Handle offer acceptance/rejection
+          showOfferNotification(data);
+          loadActiveContracts();
+          loadHiringHistory();
+        });
+        
+        socket.on('new_notification', (notification) => {
+          addNotificationToInbox(notification);
+        });
+      }
+    }
+
+    function showOfferNotification(data) {
+      const type = data.status === 'aceptado' ? 'success' : 'warning';
+      const message = data.status === 'aceptado' 
+        ? `¡Oferta #${data.offerId} aceptada!`
+        : `Oferta #${data.offerId} rechazada`;
+      
+      notifications.show(message, type);
+    }
+
+    function addNotificationToInbox(notification) {
+      const container = document.getElementById('dispatcher-inbox');
+      const notificationHtml = `
+        <div class="timeline-item notification-item">
+          <div class="timeline-time">${new Date(notification.fecha_creacion).toLocaleTimeString()}</div>
+          <div class="timeline-content">
+            <strong>${notification.titulo}</strong>
+            <p>${notification.mensaje}</p>
+          </div>
+        </div>
+      `;
+      
+      container.innerHTML = notificationHtml + container.innerHTML;
+    }
+
+    async function cancelOffer(offerId) {
+      if (!confirm('¿Estás seguro de que quieres cancelar esta oferta?')) return;
+      
+      try {
+        // Note: You'll need to add a cancel endpoint to the backend
+        notifications.show('Función de cancelación en desarrollo', 'info');
+      } catch (error) {
+        console.error('Error canceling offer:', error);
+        notifications.show('Error al cancelar oferta', 'error');
+      }
+    }
+
+    // Chat functionality (existing code remains the same)
+    async function openChatWith(userId) {
+      window.currentChatWith = Number(userId);
+      const modal = document.getElementById('chat-modal');
+      
+      const ures = await API.getUserById(userId);
+      const name = (ures && ures.success && ures.user) ? (ures.user.nombre || ures.user.username) : userId;
+      userNames[userId] = name;
+      
+      document.getElementById('chat-with-id').textContent = name;
+      document.getElementById('chat-messages').innerHTML = '<p>Cargando...</p>';
+      modal.style.display = 'block';
+      loadChatHistory(userId);
+    }
+
+    async function loadChatHistory(userId) {
+      const res = await API.getChats(userId);
+      const container = document.getElementById('chat-messages');
+      
+      if (!res.success) { 
+        container.innerHTML = '<p>Error cargando chat</p>'; 
+        return; 
+      }
+      
+      container.innerHTML = '';
+      const seen = new Set();
+      
+      (res.messages || []).forEach(m => {
+        if (m.id && seen.has(m.id)) return;
+        if (m.id) seen.add(m.id);
+        appendChatMessage(m.from_user, m.message, m.created_at, m.id);
+      });
+    }
+
+    function appendChatMessage(from, message, created_at, id) {
+      const container = document.getElementById('chat-messages');
+      
+      try { 
+        if (id && container.querySelector(`[data-msg-id="${id}"]`)) return; 
+      } catch(e) {}
+      
+      const el = document.createElement('div');
+      el.className = 'chat-line';
+      el.setAttribute('data-msg-id', id || '');
+      
+      const sender = from === navigationSystem.currentUser.id ? 'Yo' : (userNames[from] || 'Usuario desconocido');
+      el.innerHTML = `<strong>${sender}</strong>: ${message} <span style="color:var(--muted); font-size:12px;">${new Date(created_at).toLocaleTimeString()}</span>`;
+      
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendChat() {
+      const to = window.currentChatWith;
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      if (socket && socket.connected) {
+        appendChatMessage(navigationSystem.currentUser.id, message, new Date().toISOString());
+        socket.emit('private_message', { toUserId: to, message });
+        input.value = '';
+        return;
+      }
+
+      try {
+        const resp = await API.postChat(to, message);
+        if (resp.success) {
+          appendChatMessage(navigationSystem.currentUser.id, message, new Date().toISOString());
+          input.value = '';
+        } else {
+          notifications.show(resp.message || 'Error al enviar mensaje', 'error');
+        }
+      } catch (e) {
+        console.error('Error sending chat via API:', e);
+        notifications.show('Error de conexión', 'error');
+      }
+    }
+  </script>
+
+  <style>
+    .filters-container {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .filter-group label {
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    
+    .filter-group select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+    }
+    
+    .drivers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .driver-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+    
+    .driver-info h4 {
+      margin: 0 0 8px 0;
+      color: var(--text-primary);
+    }
+    
+    .driver-info p {
+      margin: 4px 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .driver-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .contracts-table {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .table-header, .table-row {
+      display: grid;
+      grid-template-columns: 120px 150px 200px 100px 100px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+    }
+    
+    .table-header {
+      background: var(--background-secondary);
+      font-weight: 600;
+      border-radius: 6px;
+    }
+    
+    .table-row {
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .table-row:hover {
+      background: var(--background-secondary);
+    }
+    
+    .contract-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      margin-bottom: 8px;
+    }
+    
+    .contract-info h4 {
+      margin: 0 0 8px 0;
+      color: var(--text-primary);
+    }
+    
+    .contract-info p {
+      margin: 4px 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .contract-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-disponible {
+      background: #E8F5E8;
+      color: #2E7D32;
+    }
+    
+    .status-contratado {
+      background: #E3F2FD;
+      color: #1976D2;
+    }
+    
+    .status-en-viaje {
+      background: #FFF3E0;
+      color: #F57C00;
+    }
+    
+    .status-mantenimiento {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+    
+    .status-enviado {
+      background: #F3E5F5;
+      color: #7B1FA2;
+    }
+    
+    .status-aceptado {
+      background: #E8F5E8;
+      color: #2E7D32;
+    }
+    
+    .status-rechazado {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+    
+    .map-info h4 {
+      margin: 0 0 8px 0;
+      color: var(--text-primary);
+    }
+    
+    .map-info p {
+      margin: 4px 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .notification-item {
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-secondary);
+    }
+    
+    #dispatcher-map {
+      height: 400px;
+      width: 100%;
+      border-radius: 8px;
+      z-index: 1;
+    }
+
+    .vehicle-marker {
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      padding: 8px;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .error {
+      background: #FFEBEE;
+      color: #D32F2F;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .map-placeholder {
+      height: 400px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .map-placeholder h3 {
+      margin: 0 0 16px 0;
+      font-size: 24px;
+    }
+
+    .map-placeholder p {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+
+    .map-placeholder ol, .map-placeholder ul {
+      text-align: left;
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+
+    .map-placeholder li {
+      margin: 4px 0;
+      font-size: 13px;
+    }
+  </style>
+</body>
+</html>

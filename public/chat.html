@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Sistema de Enturnamiento</title>
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/chat.css">
+  <link rel="stylesheet" href="css/footer.css">
+</head>
+<body>
+  <div id="header-container"></div>
+
+  <main class="main-content">
+    <div class="chat-app">
+      <aside class="conversations">
+        <div class="conv-header">
+          <h3>Conexiones</h3>
+          <input id="conv-search" placeholder="Buscar usuario por nombre o username" />
+        </div>
+        <div id="conversations-list" class="conv-list">
+          <p class="muted">Cargando conversaciones...</p>
+        </div>
+        <div class="new-chat">
+          <input id="new-user-input" placeholder="Abrir chat con username" />
+          <button class="btn btn-primary" onclick="startNewChat()">Abrir</button>
+        </div>
+      </aside>
+
+      <section class="chat-window">
+        <div class="chat-header">
+          <div id="chat-with-info">Selecciona una conversación</div>
+        </div>
+        <div id="chat-body" class="chat-body">
+          <div class="muted">Sin conversación activa</div>
+        </div>
+
+        <div class="chat-input-area">
+          <input id="chat-input-global" placeholder="Escribe un mensaje..." />
+          <button class="btn btn-primary" id="send-btn">Enviar</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-container"></div>
+
+  <script src="js/app.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <script>
+
+    /** -------------------------
+     *  CHAT PAGE FLAGS
+     * ------------------------- */
+    window.chatPageActive = true;
+    window.addEventListener("beforeunload", () => {
+      window.chatPageActive = false;
+    });
+
+    /** -------------------------
+     *  VARIABLES
+     * ------------------------- */
+    let socket;
+    let currentConversations = [];
+    let currentChatWith = null;
+    let userNames = {};
+    let unreadChatCount = parseInt(localStorage.getItem("chatUnreadCount") || "0");
+
+    /** -------------------------
+     *  BADGE HELPER
+     * ------------------------- */
+    function incrementChatBadge() {
+      let current = parseInt(localStorage.getItem("chatUnreadCount") || "0");
+      current++;
+      localStorage.setItem("chatUnreadCount", String(current));
+      NavigationSystem.setChatBadge(current);
+    }
+
+    /** -------------------------
+     *  INICIO DE CHAT
+     * ------------------------- */
+    document.addEventListener("DOMContentLoaded", async () => {
+      if (!navigationSystem.ensureAuthenticated(["conductor", "despachador"])) return;
+      await initChat();
+    });
+
+    async function initChat() {
+      initSocket();
+      await loadConversations();
+      setupUiHandlers();
+    }
+
+    function setupUiHandlers() {
+      const search = document.getElementById("conv-search");
+      search.addEventListener("input", (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        renderConversations(
+          currentConversations.filter(
+            (c) =>
+              (c.nombre || "").toLowerCase().includes(q) ||
+              (c.username || "").toLowerCase().includes(q)
+          )
+        );
+      });
+
+      document.getElementById("send-btn").addEventListener("click", sendGlobal);
+      document.getElementById("chat-input-global").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendGlobal();
+      });
+    }
+
+    /** -------------------------
+     *  SOCKET — MODIFICADO COMPLETO
+     * ------------------------- */
+    function initSocket() {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      // Reusar socket global si existe
+      socket = window.globalChatSocket || io({ auth: { token } });
+      window.globalChatSocket = socket;
+
+      socket.on("connect", () => {
+        console.log("📡 Socket conectado en página de chat");
+      });
+
+      socket.on("private_message", (msg) => {
+        // Si el mensaje pertenece al chat abierto → mostrar
+        if (currentChatWith && currentChatWith === msg.from) {
+          appendChatMessage(msg.from, msg.message, msg.created_at, msg.id);
+        } else {
+          // Si NO es el chat abierto → subir burbuja de notificación
+          incrementChatBadge();
+        }
+
+        // Actualizar preview de conversación
+        updateConversationPreview(msg.from, msg.message, msg.created_at, msg.id);
+      });
+
+      socket.on("private_message_sent", (payload) => {
+        try {
+          const container = document.getElementById("chat-body");
+          if (!container || !payload || !payload.message) return;
+          const nodes = Array.from(container.querySelectorAll(".chat-line")).reverse();
+          for (const n of nodes) {
+            if (n.getAttribute("data-msg-id")) continue;
+            if (n.textContent.includes(payload.message)) {
+              n.setAttribute("data-msg-id", payload.id || "");
+              break;
+            }
+          }
+        } catch (e) {}
+
+        updateConversationPreview(payload.to, payload.message, payload.created_at, payload.id);
+      });
+    }
+
+    /** -------------------------
+     *  CONVERSACIONES
+     * ------------------------- */
+    async function loadConversations() {
+      const res = await API.getConversations();
+      const el = document.getElementById("conversations-list");
+      if (!res.success) {
+        el.innerHTML = "<p>Error cargando conversaciones</p>";
+        return;
+      }
+
+      currentConversations = res.conversations || [];
+      currentConversations.forEach((c) => {
+        userNames[c.other_user_id] = c.nombre || c.username;
+      });
+
+      renderConversations(currentConversations);
+      computeUnread();
+    }
+
+    function computeUnread() {
+      unreadChatCount = currentConversations.filter((c) => c.unread).length;
+      NavigationSystem.setChatBadge(unreadChatCount);
+    }
+
+    function renderConversations(list) {
+      const el = document.getElementById("conversations-list");
+
+      if (!list || list.length === 0) {
+        el.innerHTML = "<p class='muted'>No hay conversaciones.</p>";
+        return;
+      }
+
+      el.innerHTML = list
+        .map(
+          (c) => `
+        <div class="conv-item ${c.unread ? "unread" : ""}" 
+             data-id="${c.other_user_id}" 
+             onclick="openConversation(${c.other_user_id})">
+          <div class="conv-name">${c.nombre || c.username}</div>
+          <div class="conv-last">${c.last_message || ""}</div>
+          <div class="conv-time">${new Date(c.last_at).toLocaleString()}</div>
+        </div>
+      `
+        )
+        .join("");
+    }
+
+    /** -------------------------
+     * ABRIR CHAT
+     * ------------------------- */
+    async function openConversation(userId) {
+      currentChatWith = Number(userId);
+
+      // 🔹 Al abrir un chat → limpiar burbuja
+      localStorage.setItem("chatUnreadCount", "0");
+      NavigationSystem.setChatBadge(0);
+
+      document.getElementById("chat-body").innerHTML = "<p class='muted'>Cargando chat...</p>";
+
+      const res = await API.getChats(userId);
+      if (!res.success) {
+        document.getElementById("chat-body").innerHTML = "<p>Error cargando chat</p>";
+        return;
+      }
+
+      const ures = await API.getUserById(userId);
+      const name =
+        ures && ures.success && ures.user
+          ? ures.user.nombre || ures.user.username
+          : userId;
+
+      document.getElementById("chat-with-info").textContent =
+        "Conversación con " + name;
+
+      document.getElementById("chat-body").innerHTML = "";
+
+      const seen = new Set();
+      (res.messages || []).forEach((m) => {
+        if (m.id && seen.has(m.id)) return;
+        if (m.id) seen.add(m.id);
+        appendChatMessage(m.from_user, m.message, m.created_at, m.id);
+      });
+
+      const conv = currentConversations.find((c) => c.other_user_id === currentChatWith);
+      if (conv) conv.unread = false;
+
+      renderConversations(currentConversations);
+      computeUnread();
+    }
+
+    /** -------------------------
+     *  MENSAJES
+     * ------------------------- */
+    function appendChatMessage(from, message, created_at, id) {
+      const container = document.getElementById("chat-body");
+      try {
+        if (id && container.querySelector(`[data-msg-id="${id}"]`)) return;
+      } catch (e) {}
+
+      const div = document.createElement("div");
+      div.className = "chat-line";
+      div.setAttribute("data-msg-id", id || "");
+
+      const sender =
+        from === navigationSystem.currentUser.id
+          ? "Yo"
+          : userNames[from] || "Desconocido";
+
+      div.innerHTML = `<strong>${sender}</strong>: ${message} 
+        <span class="muted time">${new Date(created_at).toLocaleTimeString()}</span>`;
+
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendGlobal() {
+      if (!currentChatWith)
+        return notifications.show("Selecciona una conversación", "info");
+
+      const input = document.getElementById("chat-input-global");
+      const message = input.value.trim();
+      if (!message) return;
+
+      if (socket && socket.connected) {
+        appendChatMessage(
+          navigationSystem.currentUser.id,
+          message,
+          new Date().toISOString()
+        );
+
+        socket.emit("private_message", {
+          toUserId: currentChatWith,
+          message,
+        });
+
+        input.value = "";
+        return;
+      }
+
+      const resp = await API.postChat(currentChatWith, message);
+      if (resp.success) {
+        appendChatMessage(
+          navigationSystem.currentUser.id,
+          message,
+          new Date().toISOString(),
+          resp.id || null
+        );
+        input.value = "";
+      } else {
+        notifications.show(resp.message || "Error al enviar mensaje", "error");
+      }
+    }
+
+    async function startNewChat() {
+      const username = document.getElementById("new-user-input").value.trim();
+      if (!username)
+        return notifications.show("Escribe un username válido", "info");
+
+      const resp = await API.searchUsers(username);
+      if (!resp.success)
+        return notifications.show("Error buscando usuario", "error");
+
+      const found = (resp.users || []).find((u) => u.username === username);
+      if (!found)
+        return notifications.show("Usuario no encontrado", "info");
+
+      updateConversationPreview(
+        found.id,
+        "",
+        new Date().toISOString(),
+        null,
+        found.username,
+        found.nombre
+      );
+
+      openConversation(found.id);
+    }
+
+    function updateConversationPreview(
+      otherId,
+      lastMessage,
+      lastAt,
+      id,
+      username,
+      nombre
+    ) {
+      const idx = currentConversations.findIndex(
+        (c) => c.other_user_id === Number(otherId)
+      );
+
+      const entry = {
+        other_user_id: Number(otherId),
+        username:
+          username ||
+          (currentConversations[idx] && currentConversations[idx].username) ||
+          "Usuario",
+        nombre:
+          nombre ||
+          (currentConversations[idx] && currentConversations[idx].nombre) ||
+          "",
+        last_message: lastMessage || "",
+        last_at: lastAt || new Date().toISOString(),
+        unread: !!lastMessage && currentChatWith !== Number(otherId),
+      };
+
+      if (idx >= 0) currentConversations.splice(idx, 1);
+
+      currentConversations.unshift(entry);
+
+      renderConversations(currentConversations);
+      computeUnread();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Ignora las carpetas de dependencias y de Node.js (ya que se manejan en el Dockerfile)
+node_modules
+.git
+.gitignore
+npm-debug.log
+
+# Ignora los archivos de caché y configuración del editor
+.vscode
+.env

@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Conductor - Sistema de Enturnamiento</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/footer.css">
+</head>
+
+<body>
+    <div id="header-container"></div>
+
+    <main class="main-content">
+        <div class="dashboard">
+            <div class="dashboard-header">
+                <h1>Panel del Conductor</h1>
+                <p>Gestiona tu disponibilidad, contrataciones y viajes.</p>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="dashboard-card">
+                    <h3>Mi Vehículo</h3>
+                    <div class="number" id="current-vehicle">Sin registrar</div>
+                    <button class="btn btn-primary" onclick="openVehicleModal()" style="margin-top: 10px;">
+                        Registrar Vehículo
+                    </button>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3>Estado del Vehículo</h3>
+                    <div id="vehicle-status">Inactivo</div>
+                    <button class="btn btn-secondary" onclick="toggleVehicleStatus()" style="margin-top: 10px;">
+                        Cambiar Estado
+                    </button>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3>Notificaciones</h3>
+                    <div class="number" id="notification-count">0</div>
+                    <button class="btn btn-secondary" onclick="scrollToNotifications()" style="margin-top: 10px;">
+                        Ver Notificaciones
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notificaciones de Contratación -->
+            <div class="dashboard-section">
+                <h2>📬 Solicitudes de Contratación</h2>
+                <div id="driver-notifications" class="notifications-container">
+                    <div class="empty-state">No hay nuevas solicitudes</div>
+                </div>
+            </div>
+
+            <!-- Viajes Activos -->
+            <div class="dashboard-section">
+                <h2>🚛 Viajes Activos</h2>
+                <div id="active-trips" class="trips-list">
+                    <div class="empty-state">No hay viajes activos</div>
+                </div>
+            </div>
+
+            <!-- Historial de Viajes -->
+            <div class="dashboard-section">
+                <h2>📋 Historial de Viajes</h2>
+                <div id="trips-history" class="trips-list">
+                    <div class="empty-state">Sin historial de viajes</div>
+                </div>
+            </div>
+
+            <!-- Registrar Disponibilidad -->
+            <div class="dashboard-section">
+                <h2>🚗 Registrar Disponibilidad</h2>
+                <div class="form-container">
+                    <form id="availability-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="placa">Placa del Vehículo</label>
+                                <input type="text" id="placa" name="placa" placeholder="ABC-1234" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tipo-vehiculo">Tipo de Vehículo</label>
+                                <select id="tipo-vehiculo" name="tipo-vehiculo" required>
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="Camión">Camión</option>
+                                    <option value="Bus">Bus</option>
+                                    <option value="Camioneta">Camioneta</option>
+                                    <option value="Van">Van</option>
+                                    <option value="Volqueta">Volqueta</option>
+                                    <option value="Tanquero">Tanquero</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="tipo-carroceria">Tipo de Carrocería</label>
+                                <select id="tipo-carroceria" name="tipo-carroceria" required>
+                                    <option value="">Seleccionar carrocería</option>
+                                    <option value="Plataforma">Plataforma</option>
+                                    <option value="Cerrada">Cerrada</option>
+                                    <option value="Cisterna">Cisterna</option>
+                                    <option value="Volteo">Volteo</option>
+                                    <option value="Furgón">Furgón</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ciudad-origen">Ciudad de Operación</label>
+                                <select id="ciudad-origen" name="ciudad-origen" required>
+                                    <option value="">Seleccionar ciudad</option>
+                                    <option value="Bogotá">Bogotá</option>
+                                    <option value="Medellín">Medellín</option>
+                                    <option value="Cali">Cali</option>
+                                    <option value="Barranquilla">Barranquilla</option>
+                                    <option value="Cartagena">Cartagena</option>
+                                    <option value="Santa Marta">Santa Marta</option>
+                                    <option value="Pereira">Pereira</option>
+                                    <option value="Bucaramanga">Bucaramanga</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="destino-preferente">Destino Preferente</label>
+                                <select id="destino-preferente" name="destino-preferente">
+                                    <option value="">Seleccionar destino</option>
+                                    <option value="Bogotá">Bogotá</option>
+                                    <option value="Medellín">Medellín</option>
+                                    <option value="Cali">Cali</option>
+                                    <option value="Barranquilla">Barranquilla</option>
+                                    <option value="Cartagena">Cartagena</option>
+                                    <option value="Santa Marta">Santa Marta</option>
+                                    <option value="Pereira">Pereira</option>
+                                    <option value="Bucaramanga">Bucaramanga</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="disponibilidad">Disponibilidad</label>
+                                <select id="disponibilidad" name="disponibilidad" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Disponible">Disponible</option>
+                                    <option value="En viaje">En viaje</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Registrar Vehículo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <!-- Modal para Detalles de Oferta -->
+    <div id="offer-detail-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="closeOfferModal()">&times;</span>
+            <h3>Nueva Solicitud de Contratación</h3>
+            <div id="offer-detail-content"></div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+                <button class="btn" onclick="rejectOffer()">Rechazar</button>
+                <button class="btn btn-primary" onclick="acceptOffer()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Detalles del Viaje -->
+    <div id="trip-detail-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="closeTripModal()">&times;</span>
+            <h3>Detalles del Viaje</h3>
+            <div id="trip-detail-content"></div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+                <button class="btn" onclick="closeTripModal()">Cerrar</button>
+                <button class="btn btn-primary" id="finalize-trip-btn" onclick="finalizeTripFromModal()" style="display:none;">
+                    Finalizar Viaje
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Registrar Vehículo -->
+    <div id="vehicle-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="closeVehicleModal()">&times;</span>
+            <h3>Registrar Vehículo</h3>
+            <form id="vehicle-form" onsubmit="registerVehicle(event)">
+                <div class="form-group">
+                    <label for="modal-placa">Placa del Vehículo</label>
+                    <input type="text" id="modal-placa" placeholder="ABC-1234" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-tipo-vehiculo">Tipo de Vehículo</label>
+                    <select id="modal-tipo-vehiculo" required>
+                        <option value="">Seleccionar tipo</option>
+                        <option value="Camión">Camión</option>
+                        <option value="Bus">Bus</option>
+                        <option value="Camioneta">Camioneta</option>
+                        <option value="Van">Van</option>
+                        <option value="Volqueta">Volqueta</option>
+                        <option value="Tanquero">Tanquero</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-tipo-carroceria">Tipo de Carrocería</label>
+                    <select id="modal-tipo-carroceria" required>
+                        <option value="">Seleccionar carrocería</option>
+                        <option value="Plataforma">Plataforma</option>
+                        <option value="Cerrada">Cerrada</option>
+                        <option value="Cisterna">Cisterna</option>
+                        <option value="Volteo">Volteo</option>
+                        <option value="Furgón">Furgón</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-ciudad-origen">Ciudad de Operación</label>
+                    <select id="modal-ciudad-origen" required>
+                        <option value="">Seleccionar ciudad</option>
+                        <option value="Bogotá">Bogotá</option>
+                        <option value="Medellín">Medellín</option>
+                        <option value="Cali">Cali</option>
+                        <option value="Barranquilla">Barranquilla</option>
+                        <option value="Cartagena">Cartagena</option>
+                        <option value="Santa Marta">Santa Marta</option>
+                        <option value="Pereira">Pereira</option>
+                        <option value="Bucaramanga">Bucaramanga</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-destino-preferente">Destino Preferente</label>
+                    <select id="modal-destino-preferente">
+                        <option value="">Seleccionar destino</option>
+                        <option value="Bogotá">Bogotá</option>
+                        <option value="Medellín">Medellín</option>
+                        <option value="Cali">Cali</option>
+                        <option value="Barranquilla">Barranquilla</option>
+                        <option value="Cartagena">Cartagena</option>
+                        <option value="Santa Marta">Santa Marta</option>
+                        <option value="Pereira">Pereira</option>
+                        <option value="Bucaramanga">Bucaramanga</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeVehicleModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <script>
+        let currentOffer = null;
+        let currentTrip = null;
+        let myVehicle = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!navigationSystem.ensureAuthenticated(['conductor'])) return;
+            
+            // Initialize conductor panel
+            loadMyVehicle();
+            loadNotifications();
+            loadActiveTrips();
+            loadTripsHistory();
+            
+            // Set up periodic updates
+            setInterval(loadNotifications, 10000); // Update notifications every 10 seconds
+            setInterval(loadActiveTrips, 15000); // Update active trips every 15 seconds
+            
+            // Set up WebSocket for real-time notifications
+            setupWebSocket();
+            
+            // Handle availability form submission
+            document.getElementById('availability-form').addEventListener('submit', handleAvailabilityForm);
+        });
+
+        async function loadMyVehicle() {
+            try {
+                const response = await API.request('/vehicles/my-vehicles');
+                
+                if (response.success && response.vehicles && response.vehicles.length > 0) {
+                    myVehicle = response.vehicles[0];
+                    updateVehicleDisplay();
+                } else {
+                    document.getElementById('current-vehicle').textContent = 'Sin registrar';
+                    document.getElementById('vehicle-status').textContent = 'Inactivo';
+                }
+            } catch (error) {
+                console.error('Error loading vehicle:', error);
+            }
+        }
+
+        function updateVehicleDisplay() {
+            if (myVehicle) {
+                document.getElementById('current-vehicle').innerHTML = `
+                    <span style="font-size: 14px; display: block; margin: 8px 0;">
+                        <strong>${myVehicle.placa}</strong><br>
+                        ${myVehicle.tipo_vehiculo}
+                    </span>
+                `;
+                document.getElementById('vehicle-status').innerHTML = `
+                    <span class="status-badge status-${myVehicle.estado.toLowerCase().replace(' ', '-')}" 
+                          style="padding: 8px 16px; border-radius: 20px;">
+                        ${myVehicle.estado}
+                    </span>
+                `;
+            }
+        }
+
+        async function toggleVehicleStatus() {
+            if (!myVehicle) {
+                notifications.show('Debes registrar un vehículo primero', 'warning');
+                return;
+            }
+
+            const newStatus = myVehicle.estado === 'Disponible' ? 'En viaje' : 'Disponible';
+            
+            try {
+                const response = await API.request(`/vehicles/${myVehicle.id}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.success) {
+                    myVehicle.estado = newStatus;
+                    updateVehicleDisplay();
+                    notifications.show(`Estado cambiado a: ${newStatus}`, 'success');
+                } else {
+                    notifications.show(response.message || 'Error al cambiar estado', 'error');
+                }
+            } catch (error) {
+                console.error('Error toggling vehicle status:', error);
+                notifications.show('Error al cambiar estado', 'error');
+            }
+        }
+
+        async function loadNotifications() {
+            try {
+                const response = await API.request('/offers');
+                
+                if (response.success && response.offers) {
+                    const pendingOffers = response.offers.filter(o => o.estado === 'enviado');
+                    renderNotifications(pendingOffers);
+                    updateNotificationCount(pendingOffers.length);
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
+        function renderNotifications(offers) {
+            const container = document.getElementById('driver-notifications');
+            
+            if (offers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay nuevas solicitudes</div>';
+                return;
+            }
+
+            container.innerHTML = offers.map(offer => `
+                <div class="notification-card">
+                    <div class="notification-header">
+                        <h4>Solicitud de ${offer.despachador_nombre || 'Despachador'}</h4>
+                        <span class="time-badge">${new Date(offer.fecha_creacion).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="notification-body">
+                        <p><strong>Mensaje:</strong> ${offer.mensaje || 'Sin detalles adicionales'}</p>
+                    </div>
+                    <div class="notification-actions">
+                        <button class="btn btn-small" onclick="viewOfferDetails(${JSON.stringify(offer).replace(/"/g, '&quot;')})">
+                            Ver Detalles
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="quickRejectOffer(${offer.id})">
+                            Rechazar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateNotificationCount(count) {
+            document.getElementById('notification-count').textContent = count;
+            if (count > 0) {
+                document.getElementById('notification-count').style.color = '#FF9800';
+            } else {
+                document.getElementById('notification-count').style.color = 'var(--text-secondary)';
+            }
+        }
+
+        function viewOfferDetails(offer) {
+            currentOffer = offer;
+            const content = document.getElementById('offer-detail-content');
+            
+            content.innerHTML = `
+                <div class="offer-details">
+                    <div class="detail-row">
+                        <span class="label">Despachador:</span>
+                        <span class="value">${offer.despachador_nombre || 'Despachador'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Mensaje:</span>
+                        <span class="value">${offer.mensaje || 'Sin detalles'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Vehículo:</span>
+                        <span class="value">${offer.placa || 'N/A'} - ${offer.tipo_vehiculo || ''}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Fecha de Solicitud:</span>
+                        <span class="value">${new Date(offer.fecha_creacion).toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('offer-detail-modal').style.display = 'block';
+        }
+
+        function closeOfferModal() {
+            document.getElementById('offer-detail-modal').style.display = 'none';
+            currentOffer = null;
+        }
+
+        async function acceptOffer() {
+            if (!currentOffer) return;
+
+            try {
+                const response = await API.request(`/offers/${currentOffer.id}/respond`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ action: 'aceptar' })
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Solicitud aceptada', 'success');
+                    closeOfferModal();
+                    loadNotifications();
+                    loadActiveTrips();
+                } else {
+                    notifications.show(response.message || 'Error al aceptar', 'error');
+                }
+            } catch (error) {
+                console.error('Error accepting offer:', error);
+                notifications.show('Error al aceptar solicitud', 'error');
+            }
+        }
+
+        async function rejectOffer() {
+            if (!currentOffer) return;
+
+            try {
+                const response = await API.request(`/offers/${currentOffer.id}/respond`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ action: 'rechazar' })
+                });
+
+                if (response.success) {
+                    notifications.show('❌ Solicitud rechazada', 'info');
+                    closeOfferModal();
+                    loadNotifications();
+                } else {
+                    notifications.show(response.message || 'Error al rechazar', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting offer:', error);
+                notifications.show('Error al rechazar solicitud', 'error');
+            }
+        }
+
+        async function quickRejectOffer(offerId) {
+            if (!confirm('¿Estás seguro de rechazar esta solicitud?')) return;
+
+            try {
+                const response = await API.request(`/offers/${offerId}/respond`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ action: 'rechazar' })
+                });
+
+                if (response.success) {
+                    notifications.show('Solicitud rechazada', 'info');
+                    loadNotifications();
+                } else {
+                    notifications.show(response.message || 'Error al rechazar', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting offer:', error);
+                notifications.show('Error al rechazar solicitud', 'error');
+            }
+        }
+
+        async function loadActiveTrips() {
+            try {
+                const response = await API.request('/trips');
+                
+                if (response.success && response.trips) {
+                    const activeTrips = response.trips.filter(t => (t.estado || '').toLowerCase() === 'en curso');
+                    renderActiveTrips(activeTrips);
+                }
+            } catch (error) {
+                console.error('Error loading active trips:', error);
+            }
+        }
+
+        function renderActiveTrips(trips) {
+            const container = document.getElementById('active-trips');
+            
+            if (trips.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay viajes activos</div>';
+                return;
+            }
+
+            container.innerHTML = trips.map(trip => `
+                <div class="trip-card">
+                    <div class="trip-header">
+                        <h4>Viaje #${trip.id}</h4>
+                        <span class="trip-status">${trip.estado}</span>
+                    </div>
+                    <div class="trip-body">
+                        <p><strong>Origen:</strong> ${trip.origen || 'N/A'}</p>
+                        <p><strong>Destino:</strong> ${trip.destino || 'N/A'}</p>
+                        <p><strong>Despachador:</strong> ${trip.despachador_nombre || 'N/A'}</p>
+                        <p><strong>Fecha:</strong> ${new Date(trip.fecha_inicio).toLocaleString()}</p>
+                    </div>
+                    <div class="trip-actions">
+                        <button class="btn btn-small" onclick="viewTripDetails(${JSON.stringify(trip).replace(/"/g, '&quot;')})">
+                            Ver Detalles
+                        </button>
+                        <button class="btn btn-success btn-small" onclick="finalizeTrip(${trip.id})">
+                            Finalizar Viaje
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewTripDetails(trip) {
+            currentTrip = trip;
+            const content = document.getElementById('trip-detail-content');
+            
+            content.innerHTML = `
+                <div class="trip-details">
+                    <div class="detail-row">
+                        <span class="label">ID del Viaje:</span>
+                        <span class="value">#${trip.id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Estado:</span>
+                        <span class="value"><span class="status-badge" style="background: #FF9800; color: white; padding: 4px 8px; border-radius: 4px;">${trip.estado}</span></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Origen:</span>
+                        <span class="value">${trip.origen || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Destino:</span>
+                        <span class="value">${trip.destino || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Despachador:</span>
+                        <span class="value">${trip.despachador_nombre || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Fecha de Inicio:</span>
+                        <span class="value">${new Date(trip.fecha_inicio).toLocaleString()}</span>
+                    </div>
+                    ${trip.fecha_fin ? `
+                    <div class="detail-row">
+                        <span class="label">Fecha de Finalización:</span>
+                        <span class="value">${new Date(trip.fecha_fin).toLocaleString()}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Show finalize button only if trip is active
+            // Show finalize button only if the trip is active (En curso)
+            document.getElementById('finalize-trip-btn').style.display = 
+                (trip.estado && trip.estado.toLowerCase() === 'en curso') ? 'block' : 'none';
+            
+            document.getElementById('trip-detail-modal').style.display = 'block';
+        }
+
+        function closeTripModal() {
+            document.getElementById('trip-detail-modal').style.display = 'none';
+            currentTrip = null;
+        }
+
+        async function finalizeTrip(tripId) {
+            if (!confirm('¿Estás seguro de finalizar este viaje?')) return;
+
+            try {
+                const response = await API.request(`/trips/${tripId}/finalize`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'completado' })
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Viaje finalizado', 'success');
+                    closeTripModal();
+                    loadActiveTrips();
+                    loadTripsHistory();
+                } else {
+                    notifications.show(response.message || 'Error al finalizar', 'error');
+                }
+            } catch (error) {
+                console.error('Error finalizing trip:', error);
+                notifications.show('Error al finalizar viaje', 'error');
+            }
+        }
+
+        async function finalizeTripFromModal() {
+            if (currentTrip) {
+                await finalizeTrip(currentTrip.id);
+            }
+        }
+
+        async function loadTripsHistory() {
+            try {
+                const response = await API.request('/trips');
+                
+                if (response.success && response.trips) {
+                    const completedTrips = response.trips.filter(t => {
+                        const s = (t.estado || '').toLowerCase();
+                        return s.includes('finalizado') || s.includes('complet');
+                    });
+                    renderTripsHistory(completedTrips);
+                }
+            } catch (error) {
+                console.error('Error loading trips history:', error);
+            }
+        }
+
+        function renderTripsHistory(trips) {
+            const container = document.getElementById('trips-history');
+            
+            if (trips.length === 0) {
+                container.innerHTML = '<div class="empty-state">Sin historial de viajes</div>';
+                return;
+            }
+
+            container.innerHTML = trips.map(trip => `
+                <div class="trip-card completed">
+                    <div class="trip-header">
+                        <h4>Viaje #${trip.id}</h4>
+                        <span class="trip-status completed">Completado</span>
+                    </div>
+                    <div class="trip-body">
+                        <p><strong>Origen:</strong> ${trip.ciudad_origen || 'N/A'}</p>
+                        <p><strong>Destino:</strong> ${trip.ciudad_destino || 'N/A'}</p>
+                        <p><strong>Despachador:</strong> ${trip.despachador_nombre || 'N/A'}</p>
+                        <p><strong>Fecha:</strong> ${new Date(trip.fecha_inicio).toLocaleString()}</p>
+                    </div>
+                    <div class="trip-actions">
+                        <button class="btn btn-small" onclick="viewTripDetails(${JSON.stringify(trip).replace(/"/g, '&quot;')})">
+                            Ver Detalles
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function handleAvailabilityForm(e) {
+            e.preventDefault();
+
+            const formData = {
+                placa: document.getElementById('placa').value,
+                tipo_vehiculo: document.getElementById('tipo-vehiculo').value,
+                tipo_carroceria: document.getElementById('tipo-carroceria').value,
+                ciudad_origen: document.getElementById('ciudad-origen').value,
+                destino_preferente: document.getElementById('destino-preferente').value
+            };
+
+            try {
+                const response = await API.request('/vehicles', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Vehículo registrado exitosamente', 'success');
+                    document.getElementById('availability-form').reset();
+                    loadMyVehicle();
+                } else {
+                    notifications.show(response.message || 'Error al registrar vehículo', 'error');
+                }
+            } catch (error) {
+                console.error('Error registering vehicle:', error);
+                notifications.show('Error al registrar vehículo', 'error');
+            }
+        }
+
+        function openVehicleModal() {
+            document.getElementById('vehicle-modal').style.display = 'block';
+        }
+
+        function closeVehicleModal() {
+            document.getElementById('vehicle-modal').style.display = 'none';
+            document.getElementById('vehicle-form').reset();
+        }
+
+        async function registerVehicle(e) {
+            e.preventDefault();
+
+            const formData = {
+                placa: document.getElementById('modal-placa').value,
+                tipo_vehiculo: document.getElementById('modal-tipo-vehiculo').value,
+                tipo_carroceria: document.getElementById('modal-tipo-carroceria').value,
+                ciudad_origen: document.getElementById('modal-ciudad-origen').value,
+                destino_preferente: document.getElementById('modal-destino-preferente').value
+            };
+
+            try {
+                const response = await API.request('/vehicles', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Vehículo registrado exitosamente', 'success');
+                    closeVehicleModal();
+                    loadMyVehicle();
+                } else {
+                    notifications.show(response.message || 'Error al registrar vehículo', 'error');
+                }
+            } catch (error) {
+                console.error('Error registering vehicle:', error);
+                notifications.show('Error al registrar vehículo', 'error');
+            }
+        }
+
+        function scrollToNotifications() {
+            document.getElementById('driver-notifications').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function setupWebSocket() {
+            if (typeof io === 'undefined') return;
+
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            const socket = io({ auth: { token } });
+
+            socket.on('new_offer', (offer) => {
+                console.log('Nueva oferta recibida:', offer);
+                loadNotifications();
+                notifications.show('📬 Nueva solicitud de contratación', 'info');
+            });
+
+            socket.on('offer_response', (response) => {
+                console.log('Respuesta a oferta:', response);
+                if (response.status === 'aceptado') {
+                    loadActiveTrips();
+                }
+            });
+
+            window.driverSocket = socket;
+        }
+    </script>
+
+    <style>
+        .notification-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .notification-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .notification-header h4 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .time-badge {
+            background: var(--background-secondary);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .notification-body {
+            margin-bottom: 12px;
+        }
+
+        .notification-body p {
+            margin: 8px 0;
+            color: var(--text-secondary);
+        }
+
+        .notification-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .trip-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .trip-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .trip-card.completed {
+            background: #F5F5F5;
+            opacity: 0.9;
+        }
+
+        .trip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .trip-header h4 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .trip-status {
+            background: #FF9800;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .trip-status.completed {
+            background: #4CAF50;
+        }
+
+        .trip-body {
+            margin-bottom: 12px;
+        }
+
+        .trip-body p {
+            margin: 8px 0;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .trip-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-row .label {
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 120px;
+        }
+
+        .detail-row .value {
+            color: var(--text-secondary);
+            text-align: right;
+            flex: 1;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #F44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #D32F2F;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #388E3C;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+        }
+
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: var(--text-primary);
+        }
+
+        .notifications-container,
+        .trips-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .dashboard-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .dashboard-card h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+            font-size: 14px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .dashboard-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 16px 0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-disponible {
+            background: #E8F5E8;
+            color: #2E7D32;
+        }
+
+        .status-no-disponible {
+            background: #FFEBEE;
+            color: #D32F2F;
+        }
+
+        .status-en-viaje {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+    </style>
+</body>
+
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Administrador</title>
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/footer.css">
+</head>
+<body>
+  <div id="header-container"></div>
+  <main class="main-content">
+    <div class="dashboard">
+      <div class="dashboard-header">
+          <h2>Monitoreo de Solicitudes</h2>
+          <div id="admin-monitoring" style="max-height:300px; overflow:auto; border:1px solid var(--border); padding:12px; background:white;">
+            <p>Cargando monitoreo...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-section">
+        <h2>Gestión de usuarios</h2>
+        <div class="form-row" style="margin-bottom:12px; align-items:center;">
+          <div style="flex:1">
+            <input id="admin-user-filter" placeholder="Buscar por username o nombre" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border)">
+          </div>
+          <div style="width:160px; margin-left:8px;">
+            <button class="btn btn-primary" id="btn-refresh-users">Actualizar lista</button>
+          </div>
+        </div>
+
+        <div id="admin-users-list">
+          <p>Cargando usuarios...</p>
+        </div>
+      </div>
+
+      <div class="dashboard-section">
+        <h2>Reportes y bitácora</h2>
+        <p>Registros recientes del sistema (ofertas, viajes y notificaciones).</p>
+        <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+          <button class="btn btn-primary" id="btn-refresh-logs">Refrescar registros</button>
+        </div>
+        <div id="admin-logs" style="max-height:300px; overflow:auto; border:1px solid var(--border); padding:12px; background:white;">
+          <p>Cargando registros...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="footer-container"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!navigationSystem.ensureAuthenticated(['administrador'])) return;
+
+      const filterInput = document.getElementById('admin-user-filter');
+      const refreshBtn = document.getElementById('btn-refresh-users');
+
+      async function loadAdminUsers() {
+        const listEl = document.getElementById('admin-users-list');
+        listEl.innerHTML = '<p>Cargando usuarios...</p>';
+        const resp = await API.getUsers();
+        if (!resp.success) {
+          notifications.show(resp.message || 'No se pudieron cargar usuarios', 'error');
+          listEl.innerHTML = '<p>Error cargando usuarios</p>';
+          return;
+        }
+
+        let users = resp.users || [];
+        renderUsers(users);
+      }
+
+      function renderUsers(users) {
+        const out = [];
+        out.push('<div class="data-table">');
+        out.push('<div class="data-row header">');
+        out.push('<div>ID</div><div>Usuario</div><div>Nombre</div><div>Email</div><div>Teléfono</div><div>Rol</div><div>Estado</div>');
+        out.push('</div>');
+
+        const filter = filterInput.value.trim().toLowerCase();
+        users.filter(u => {
+          if (!filter) return true;
+          return (u.username || '').toLowerCase().includes(filter) || (u.nombre || '').toLowerCase().includes(filter);
+        }).forEach(u => {
+          out.push(`<div class="data-row" data-user-id="${u.id}">`);
+          out.push(`<div>${u.id}</div>`);
+          out.push(`<div>${u.username}</div>`);
+          out.push(`<div>${u.nombre}</div>`);
+          out.push(`<div>${u.email || '-'}</div>`);
+          out.push(`<div>${u.telefono || '-'}</div>`);
+
+          // role select
+          out.push(`<div><select class="user-role-select" data-user-id="${u.id}">
+            <option value="conductor" ${u.role==='conductor'?'selected':''}>Conductor</option>
+            <option value="despachador" ${u.role==='despachador'?'selected':''}>Despachador</option>
+            <option value="administrador" ${u.role==='administrador'?'selected':''}>Administrador</option>
+          </select></div>`);
+
+          // estado button
+          out.push(`<div><button class="btn btn-sm ${u.estado === 'activo' ? 'btn-secondary' : 'btn-danger'} user-state-btn" data-user-id="${u.id}">${u.estado === 'activo' ? 'Activo' : 'Inactivo'}</button></div>`);
+
+          out.push('</div>');
+        });
+
+        out.push('</div>');
+        document.getElementById('admin-users-list').innerHTML = out.join('');
+
+        // Attach handlers
+        document.querySelectorAll('.user-role-select').forEach(s => {
+          s.addEventListener('change', async (e) => {
+            const id = s.getAttribute('data-user-id');
+            const newRole = s.value;
+            const res = await API.updateUserRole(id, newRole);
+            if (res.success) {
+              notifications.show('Rol actualizado', 'success');
+            } else {
+              notifications.show(res.message || 'No se pudo actualizar rol', 'error');
+            }
+          });
+        });
+
+        document.querySelectorAll('.user-state-btn').forEach(b => {
+          b.addEventListener('click', async (e) => {
+            const id = b.getAttribute('data-user-id');
+            const isActive = b.textContent.trim() === 'Activo';
+            const nextState = isActive ? 'inactivo' : 'activo';
+            const res = await API.updateUserState(id, nextState);
+            if (res.success) {
+              notifications.show('Estado actualizado', 'success');
+              // re-load users for consistent view
+              setTimeout(loadAdminUsers, 300);
+            } else {
+              notifications.show(res.message || 'No se pudo actualizar estado', 'error');
+            }
+          });
+        });
+      }
+
+      // Wire actions
+      refreshBtn.addEventListener('click', loadAdminUsers);
+      filterInput.addEventListener('input', () => loadAdminUsers());
+
+      // Initial load
+      loadAdminUsers();
+
+      // Monitoring
+      async function loadAdminMonitoring() {
+        const el = document.getElementById('admin-monitoring');
+        el.innerHTML = '<p>Cargando monitoreo...</p>';
+        const resp = await API.getAdminLogs();
+        if (!resp.success) { el.innerHTML = '<p>Error cargando monitoreo</p>'; return; }
+        const out = [];
+        // Render notifications in a compact table like DB
+        if (resp.notifications && resp.notifications.length > 0) {
+          out.push('<div style="overflow:auto; max-width:100%;">');
+          out.push('<table style="width:100%; border-collapse:collapse; font-size:13px;">');
+          out.push('<thead><tr style="text-align:left; border-bottom:1px solid var(--border);"><th style="padding:6px; min-width:40px">ID</th><th style="padding:6px;">user_id</th><th style="padding:6px;">titulo</th><th style="padding:6px;">mensaje</th><th style="padding:6px;">tipo</th><th style="padding:6px;">leida</th><th style="padding:6px;">accion</th><th style="padding:6px;">offer_id</th><th style="padding:6px;">fecha_creacion</th></tr></thead>');
+          out.push('<tbody>');
+          out.push(resp.notifications.map(n => `\
+            <tr style="border-bottom:1px solid var(--border);">\
+              <td style="padding:6px; vertical-align:top;">${n.id}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.user_id || '-'}</td>\
+              <td style="padding:6px; vertical-align:top; font-weight:600;">${n.titulo || '-'}</td>\
+              <td style="padding:6px; vertical-align:top; color:var(--muted);">${(n.mensaje || '').length > 140 ? (n.mensaje || '').slice(0,140) + '…' : (n.mensaje|| '-')}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.tipo || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.leida ? 'Sí' : 'No'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.accion || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.offer_id || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.fecha_creacion || '-'}</td>\
+            </tr>`).join(''));
+          out.push('</tbody>');
+          out.push('</table>');
+          out.push('</div>');
+        } else {
+          out.push('<div class="empty-state">No hay notificaciones</div>');
+        }
+        el.innerHTML = out.join('');
+      }
+      loadAdminMonitoring();
+
+      // Logs
+      const logsBtn = document.getElementById('btn-refresh-logs');
+      async function loadAdminLogs() {
+        const el = document.getElementById('admin-logs');
+        el.innerHTML = '<p>Cargando registros...</p>';
+        const resp = await API.getAdminLogs();
+        if (!resp.success) { el.innerHTML = '<p>Error cargando logs</p>'; return; }
+        const out = [];
+        out.push('<h4>Notificaciones</h4>');
+        // Render notifications in a compact table like DB
+        if (resp.notifications && resp.notifications.length > 0) {
+          out.push('<div style="overflow:auto; max-width:100%; margin-bottom:10px;">');
+          out.push('<table style="width:100%; border-collapse:collapse; font-size:13px;">');
+          out.push('<thead><tr style="text-align:left; border-bottom:1px solid var(--border);"><th style="padding:6px; min-width:40px">ID</th><th style="padding:6px;">user_id</th><th style="padding:6px;">titulo</th><th style="padding:6px;">mensaje</th><th style="padding:6px;">tipo</th><th style="padding:6px;">leida</th><th style="padding:6px;">accion</th><th style="padding:6px;">offer_id</th><th style="padding:6px;">fecha_creacion</th></tr></thead>');
+          out.push('<tbody>');
+          out.push(resp.notifications.map(n => `\
+            <tr style="border-bottom:1px solid var(--border);">\
+              <td style="padding:6px; vertical-align:top;">${n.id}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.user_id || '-'}</td>\
+              <td style="padding:6px; vertical-align:top; font-weight:600;">${n.titulo || '-'}</td>\
+              <td style="padding:6px; vertical-align:top; color:var(--muted);">${(n.mensaje || '').length > 140 ? (n.mensaje || '').slice(0,140) + '…' : (n.mensaje|| '-')}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.tipo || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.leida ? 'Sí' : 'No'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.accion || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.offer_id || '-'}</td>\
+              <td style="padding:6px; vertical-align:top;">${n.fecha_creacion || '-'}</td>\
+            </tr>`).join(''));
+          out.push('</tbody>');
+          out.push('</table>');
+          out.push('</div>');
+        } else {
+          out.push('<div class="empty-state">No hay notificaciones</div>');
+        }
+        out.push('<h4 style="margin-top:8px">Ofertas</h4>');
+        out.push(resp.offers.map(o => `<div style="padding:6px;border-bottom:1px solid var(--border)"><strong>Offer #${o.id} - ${o.estado}</strong><div style="color:var(--muted);">${o.mensaje || ''}</div><small>${o.fecha_creacion}</small></div>`).join(''));
+        out.push('<h4 style="margin-top:8px">Viajes</h4>');
+        out.push(resp.trips.map(t => `<div style="padding:6px;border-bottom:1px solid var(--border)"><strong>Trip #${t.id} - ${t.estado}</strong><div style="color:var(--muted);">${t.origen} → ${t.destino}</div><small>${t.fecha_inicio}</small></div>`).join(''));
+        el.innerHTML = out.join('');
+      }
+      logsBtn.addEventListener('click', loadAdminLogs);
+      loadAdminLogs();
+    });
+  </script>
+</body>
+</html>

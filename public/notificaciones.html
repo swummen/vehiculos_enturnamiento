@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificaciones - Sistema de Enturnamiento</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/footer.css">
+</head>
+<body>
+    <div id="header-container"></div>
+
+    <main class="main-content">
+        <div class="dashboard">
+            <div class="dashboard-header">
+                <h1>Notificaciones</h1>
+                <p>Mantente informado sobre las actividades del sistema</p>
+            </div>
+
+            <div class="notifications-actions">
+                <button class="btn btn-secondary" onclick="marcarTodasComoLeidas()">
+                    Marcar todas como leídas
+                </button>
+                <button class="btn btn-danger" onclick="eliminarTodasLeidas()">
+                    Eliminar leídas
+                </button>
+            </div>
+
+            <div class="notifications-container">
+                <div class="notifications-list" id="notifications-list">
+                    <p>Cargando notificaciones...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let notificaciones = [];
+
+        // Cargar notificaciones al iniciar
+        document.addEventListener('DOMContentLoaded', cargarNotificaciones);
+
+        async function cargarNotificaciones() {
+            try {
+                // Datos de ejemplo
+                notificaciones = [
+                    {
+                        id: 1,
+                        titulo: 'Nuevo vehículo disponible',
+                        mensaje: 'Se ha registrado un nuevo camión plataforma en Bogotá',
+                        tipo: 'info',
+                        fecha: '2024-01-15 10:30',
+                        leida: false,
+                        accion: 'ver_vehiculos'
+                    },
+                    {
+                        id: 2,
+                        titulo: 'Viaje asignado',
+                        mensaje: 'Se te ha asignado un viaje de Bogotá a Medellín',
+                        tipo: 'success',
+                        fecha: '2024-01-15 09:15',
+                        leida: true,
+                        accion: 'ver_viaje'
+                    },
+                    {
+                        id: 3,
+                        titulo: 'Documento rechazado',
+                        mensaje: 'Tu SOAT ha sido rechazado. Por favor sube un nuevo documento',
+                        tipo: 'warning',
+                        fecha: '2024-01-14 16:45',
+                        leida: false,
+                        accion: 'subir_documento'
+                    },
+                    {
+                        id: 4,
+                        titulo: 'Sistema de mantenimiento',
+                        mensaje: 'El sistema estará en mantenimiento el próximo sábado de 2:00 a 4:00 AM',
+                        tipo: 'info',
+                        fecha: '2024-01-14 14:20',
+                        leida: true,
+                        accion: null
+                    }
+                ];
+                actualizarListaNotificaciones();
+            } catch (error) {
+                console.error('Error cargando notificaciones:', error);
+            }
+        }
+
+        function actualizarListaNotificaciones() {
+            const notificationsList = document.getElementById('notifications-list');
+            
+            if (notificaciones.length === 0) {
+                notificationsList.innerHTML = '<p>No hay notificaciones</p>';
+            } else {
+                // Ordenar: no leídas primero, luego por fecha más reciente
+                const notificacionesOrdenadas = [...notificaciones].sort((a, b) => {
+                    if (a.leida !== b.leida) return a.leida ? 1 : -1;
+                    return new Date(b.fecha) - new Date(a.fecha);
+                });
+
+                notificationsList.innerHTML = notificacionesOrdenadas.map(notif => `
+                    <div class="notification-item ${notif.leida ? 'leida' : 'no-leida'}">
+                        <div class="notification-icon ${notif.tipo}">
+                            ${obtenerIconoTipo(notif.tipo)}
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-header">
+                                <h4>${notif.titulo}</h4>
+                                <span class="notification-time">${formatearFecha(notif.fecha)}</span>
+                            </div>
+                            <p>${notif.mensaje}</p>
+                            ${notif.accion ? `
+                            <div class="notification-actions">
+                                <button class="btn btn-sm btn-primary" onclick="ejecutarAccion('${notif.accion}', ${notif.id})">
+                                    ${obtenerTextoAccion(notif.accion)}
+                                </button>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="notification-controls">
+                            ${!notif.leida ? `
+                            <button class="btn btn-sm btn-secondary" onclick="marcarComoLeida(${notif.id})" title="Marcar como leída">
+                                ✓
+                            </button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-danger" onclick="eliminarNotificacion(${notif.id})" title="Eliminar">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function obtenerIconoTipo(tipo) {
+            const iconos = {
+                'info': 'ℹ️',
+                'success': '✅',
+                'warning': '⚠️',
+                'error': '❌'
+            };
+            return iconos[tipo] || '📢';
+        }
+
+        function obtenerTextoAccion(accion) {
+            const textos = {
+                'ver_vehiculos': 'Ver Vehículos',
+                'ver_viaje': 'Ver Viaje',
+                'subir_documento': 'Subir Documento'
+            };
+            return textos[accion] || 'Acción';
+        }
+
+        function formatearFecha(fechaStr) {
+            const fecha = new Date(fechaStr);
+            const ahora = new Date();
+            const diffMs = ahora - fecha;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffMins < 1) return 'Ahora mismo';
+            if (diffMins < 60) return `Hace ${diffMins} min`;
+            if (diffHours < 24) return `Hace ${diffHours} h`;
+            if (diffDays === 1) return 'Ayer';
+            return `Hace ${diffDays} días`;
+        }
+
+        function marcarComoLeida(notifId) {
+            const notif = notificaciones.find(n => n.id === notifId);
+            if (notif) {
+                notif.leida = true;
+                actualizarListaNotificaciones();
+                // Aquí se integraría con la API para actualizar el estado
+                console.log('Notificación marcada como leída:', notifId);
+            }
+        }
+
+        function marcarTodasComoLeidas() {
+            notificaciones.forEach(notif => notif.leida = true);
+            actualizarListaNotificaciones();
+            // Aquí se integraría con la API
+            console.log('Todas las notificaciones marcadas como leídas');
+        }
+
+        function eliminarNotificacion(notifId) {
+            if (confirm('¿Eliminar esta notificación?')) {
+                notificaciones = notificaciones.filter(n => n.id !== notifId);
+                actualizarListaNotificaciones();
+                // Aquí se integraría con la API
+                console.log('Notificación eliminada:', notifId);
+            }
+        }
+
+        function eliminarTodasLeidas() {
+            const leidas = notificaciones.filter(n => n.leida);
+            if (leidas.length === 0) {
+                alert('No hay notificaciones leídas para eliminar');
+                return;
+            }
+
+            if (confirm(`¿Eliminar ${leidas.length} notificaciones leídas?`)) {
+                notificaciones = notificaciones.filter(n => !n.leida);
+                actualizarListaNotificaciones();
+                // Aquí se integraría con la API
+                console.log('Notificaciones leídas eliminadas');
+            }
+        }
+
+        function ejecutarAccion(accion, notifId) {
+            marcarComoLeida(notifId);
+            switch(accion) {
+                case 'ver_vehiculos':
+                    window.location.href = './despachador.html';
+                    break;
+                case 'ver_viaje':
+                    window.location.href = './viajes.html';
+                    break;
+                case 'subir_documento':
+                    alert('Redirigiendo a subida de documentos...');
+                    // window.location.href = './documentos.html';
+                    break;
+                default:
+                    console.log('Acción no implementada:', accion);
+            }
+        }
+
+        // Simular notificaciones en tiempo real (para demostración)
+        function simularNuevaNotificacion() {
+            const nuevosTipos = ['info', 'success', 'warning'];
+            const tipo = nuevosTipos[Math.floor(Math.random() * nuevosTipos.length)];
+            
+            const nuevaNotif = {
+                id: Date.now(),
+                titulo: 'Nueva notificación de prueba',
+                mensaje: 'Esta es una notificación simulada en tiempo real',
+                tipo: tipo,
+                fecha: new Date().toISOString(),
+                leida: false,
+                accion: 'ver_vehiculos'
+            };
+            
+            notificaciones.unshift(nuevaNotif);
+            actualizarListaNotificaciones();
+            
+            // Mostrar toast de nueva notificación
+            mostrarToastNuevaNotificacion(nuevaNotif);
+        }
+
+        function mostrarToastNuevaNotificacion(notif) {
+            const toast = document.createElement('div');
+            toast.className = `notification-toast ${notif.tipo}`;
+            toast.innerHTML = `
+                <strong>${notif.titulo}</strong>
+                <p>${notif.mensaje}</p>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 5000);
+        }
+
+        // Para demostración: simular nueva notificación cada 30 segundos
+        // setInterval(simularNuevaNotificacion, 30000);
+    </script>
+</body>
+</html>

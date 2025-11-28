@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Viajes - Sistema de Enturnamiento</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/footer.css">
+</head>
+<body>
+    <div id="header-container"></div>
+
+    <main class="main-content">
+        <div class="dashboard">
+            <div class="dashboard-header">
+                <h1>Gestión de Viajes</h1>
+                <p>Consulta y gestiona tus viajes</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-button active" onclick="openTab('activos', this)">Viajes Activos</button>
+                <button class="tab-button" onclick="openTab('historial', this)">Historial</button>
+            </div>
+
+            <div id="activos" class="tab-content active">
+                <h2>Viajes en Curso</h2>
+                <div id="active-trips-list" class="trips-container">
+                    <p>Cargando viajes activos...</p>
+                </div>
+            </div>
+
+            <div id="historial" class="tab-content">
+                <div class="filters">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fecha-desde">Desde</label>
+                            <input type="date" id="fecha-desde">
+                        </div>
+                        <div class="form-group">
+                            <label for="fecha-hasta">Hasta</label>
+                            <input type="date" id="fecha-hasta">
+                        </div>
+                        <div class="form-group">
+                            <label for="filtro-estado">Estado</label>
+                            <select id="filtro-estado">
+                                <option value="">Todos</option>
+                                <option value="completado">Completados</option>
+                                <option value="cancelado">Cancelados</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar Filtros</button>
+                </div>
+
+                <h2>Historial de Viajes</h2>
+                <div id="history-trips-list" class="trips-container">
+                    <p>Cargando historial de viajes...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal para detalles del viaje -->
+    <div id="trip-detail-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarModalDetalle()">&times;</span>
+            <h3 id="modal-trip-title">Detalles del Viaje</h3>
+            <div id="trip-detail-content">
+                <!-- Los detalles del viaje se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-container"></div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let viajesActivos = [];
+        let viajesHistorial = [];
+        let viajesFiltrados = [];
+
+        // Cargar datos al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarViajesActivos();
+            cargarHistorialViajes();
+        });
+
+        function openTab(tabName, btnElement) {
+            // Ocultar todos los tabs
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+
+            // Mostrar el tab seleccionado
+            document.getElementById(tabName).classList.add('active');
+            if (btnElement) btnElement.classList.add('active');
+        }
+
+        async function cargarViajesActivos() {
+            try {
+                const response = await API.request('/trips?estado=En curso');
+                if (response.success) {
+                    viajesActivos = response.trips || [];
+                } else {
+                    notifications.show('Error cargando viajes activos: ' + response.message, 'error');
+                    viajesActivos = [];
+                }
+                actualizarListaViajesActivos();
+            } catch (error) {
+                console.error('Error cargando viajes activos:', error);
+                notifications.show('Error de conexión al cargar viajes activos', 'error');
+            }
+        }
+
+        async function cargarHistorialViajes() {
+            try {
+                const response = await API.request('/trips?estado=Finalizado');
+                if (response.success) {
+                    viajesHistorial = response.trips || [];
+                } else {
+                    notifications.show('Error cargando historial: ' + response.message, 'error');
+                    viajesHistorial = [];
+                }
+                viajesFiltrados = [...viajesHistorial];
+                actualizarListaHistorialViajes();
+            } catch (error) {
+                console.error('Error cargando historial de viajes:', error);
+                notifications.show('Error de conexión al cargar historial', 'error');
+            }
+        }
+
+        function actualizarListaViajesActivos() {
+            const activeTripsList = document.getElementById('active-trips-list');
+            
+            if (viajesActivos.length === 0) {
+                activeTripsList.innerHTML = '<p>No hay viajes activos en este momento</p>';
+            } else {
+                activeTripsList.innerHTML = viajesActivos.map(viaje => `
+                    <div class="trip-card active">
+                        <div class="trip-header">
+                            <h4>${viaje.origen} → ${viaje.destino}</h4>
+                            <span class="trip-status ${viaje.estado.toLowerCase()}">${viaje.estado}</span>
+                        </div>
+                                <div class="trip-details">
+                                    <p><strong>Vehículo:</strong> ${viaje.placa || viaje.vehicle_id}</p>
+                                    <p><strong>Conductor:</strong> ${viaje.conductor_nombre || 'N/A'}</p>
+                                    <p><strong>Contratado por:</strong> ${viaje.despachador_nombre || 'N/A'}</p>
+                                    <p><strong>Carga:</strong> ${viaje.carga || 'N/A'}</p>
+                                    <p><strong>Distancia (km):</strong> ${viaje.distancia_km || 'N/A'}</p>
+                                    <p><strong>Tiempo estimado (hrs):</strong> ${viaje.tiempo_estimado_horas || 'N/A'}</p>
+                                    <p><strong>Iniciado:</strong> ${viaje.fecha_inicio}</p>
+                        </div>
+                        <div class="trip-actions">
+                            <button class="btn btn-primary" onclick="verDetalleViaje(${viaje.id})">
+                                Ver Detalles
+                            </button>
+                            <button class="btn btn-secondary" onclick="finalizarViaje(${viaje.id})">
+                                Finalizar Viaje
+                            </button>
+                            <button class="btn btn-danger" onclick="cancelarViaje(${viaje.id})">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function actualizarListaHistorialViajes() {
+            const historyTripsList = document.getElementById('history-trips-list');
+            
+            if (viajesFiltrados.length === 0) {
+                historyTripsList.innerHTML = '<p>No se encontraron viajes con los filtros aplicados</p>';
+            } else {
+                historyTripsList.innerHTML = viajesFiltrados.map(viaje => `
+                    <div class="trip-card">
+                        <div class="trip-header">
+                            <h4>${viaje.origen} → ${viaje.destino}</h4>
+                            <span class="trip-status ${viaje.estado.toLowerCase()}">${viaje.estado}</span>
+                        </div>
+                        <div class="trip-details">
+                            <p><strong>Vehículo:</strong> ${viaje.placa || viaje.vehicle_id}</p>
+                            <p><strong>Conductor:</strong> ${viaje.conductor_nombre || 'N/A'}</p>
+                            <p><strong>Contratado por:</strong> ${viaje.despachador_nombre || 'N/A'}</p>
+                            <p><strong>Carga:</strong> ${viaje.carga || 'N/A'}</p>
+                            <p><strong>Distancia (km):</strong> ${viaje.distancia_km || 'N/A'}</p>
+                            <p><strong>Fecha:</strong> ${viaje.fecha_inicio || ''} - ${viaje.fecha_fin || ''}</p>
+                            ${viaje.tiempo_real ? `<p><strong>Tiempo real:</strong> ${viaje.tiempo_real}</p>` : ''}
+                        </div>
+                        <div class="trip-actions">
+                            <button class="btn btn-secondary" onclick="verDetalleViaje(${viaje.id})">
+                                Ver Detalles
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function aplicarFiltros() {
+            const fechaDesde = document.getElementById('fecha-desde').value;
+            const fechaHasta = document.getElementById('fecha-hasta').value;
+            const estado = document.getElementById('filtro-estado').value;
+
+            viajesFiltrados = viajesHistorial.filter(viaje => {
+                const cumpleFecha = (!fechaDesde || viaje.fechaInicio >= fechaDesde) &&
+                                  (!fechaHasta || viaje.fechaInicio <= fechaHasta);
+                const cumpleEstado = !estado || viaje.estado.toLowerCase() === estado.toLowerCase();
+                
+                return cumpleFecha && cumpleEstado;
+            });
+
+            actualizarListaHistorialViajes();
+        }
+
+        function verDetalleViaje(viajeId) {
+            const viaje = [...viajesActivos, ...viajesHistorial].find(v => v.id === viajeId);
+            if (viaje) {
+                document.getElementById('modal-trip-title').textContent = `Viaje: ${viaje.origen} → ${viaje.destino}`;
+                
+                document.getElementById('trip-detail-content').innerHTML = `
+                    <div class="trip-detail-info">
+                        <p><strong>Estado:</strong> <span class="trip-status ${viaje.estado.toLowerCase()}">${viaje.estado}</span></p>
+                        <p><strong>Vehículo:</strong> ${viaje.vehiculo}</p>
+                        <p><strong>Carga:</strong> ${viaje.carga}</p>
+                        <p><strong>Distancia:</strong> ${viaje.distancia}</p>
+                        <p><strong>Fecha de inicio:</strong> ${viaje.fechaInicio}</p>
+                        ${viaje.fechaFin ? `<p><strong>Fecha de finalización:</strong> ${viaje.fechaFin}</p>` : ''}
+                        ${viaje.tiempoEstimado ? `<p><strong>Tiempo estimado:</strong> ${viaje.tiempoEstimado}</p>` : ''}
+                        ${viaje.tiempoReal ? `<p><strong>Tiempo real:</strong> ${viaje.tiempoReal}</p>` : ''}
+                    </div>
+                    ${viaje.estado === 'En curso' ? `
+                    <div class="trip-detail-actions">
+                        <button class="btn btn-primary" onclick="actualizarUbicacion(${viaje.id})">Actualizar Ubicación</button>
+                        <button class="btn btn-secondary" onclick="contactarDespachador(${viaje.id})">Contactar Despachador</button>
+                    </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('trip-detail-modal').style.display = 'block';
+            }
+        }
+
+        function cerrarModalDetalle() {
+            document.getElementById('trip-detail-modal').style.display = 'none';
+        }
+
+        async function finalizarViaje(viajeId) {
+            if (confirm('¿Está seguro de que desea finalizar este viaje?')) {
+                try {
+                    const response = await API.request(`/trips/${viajeId}/finalize`, {
+                        method: 'PUT'
+                    });
+                    if (response.success) {
+                        notifications.show('Viaje finalizado correctamente', 'success');
+                        cargarViajesActivos();
+                        cargarHistorialViajes();
+                    } else {
+                        notifications.show('Error: ' + response.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error finalizando viaje:', error);
+                    notifications.show('Error de conexión', 'error');
+                }
+            }
+        }
+
+        async function cancelarViaje(viajeId) {
+            // Note: Server doesn't have cancel endpoint, so just show message
+            notifications.show('Cancelación de viajes no implementada aún', 'info');
+        }
+
+        function actualizarUbicacion(viajeId) {
+            // This would require GPS integration
+            notifications.show('Actualización de ubicación no implementada aún', 'info');
+        }
+
+        function contactarDespachador(viajeId) {
+            // This would require contact functionality
+            notifications.show('Contacto con despachador no implementado aún', 'info');
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const modal = document.getElementById('trip-detail-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

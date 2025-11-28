@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Enturnamiento</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/footer.css">
+</head>
+<body>
+    <div id="header-container"></div>
+
+    <main class="main-content">
+        <section class="hero-section">
+            <div class="hero-content">
+                <span class="hero-badge">Disponibilidad en vivo • Railway + Maps</span>
+                <h1>Gestiona vehículos, asigna viajes y contrata en minutos</h1>
+                <p>Centraliza la oferta de conductores, ve su ubicación en tiempo real y confirma servicios con trazabilidad completa.</p>
+                <div class="cta-buttons">
+                    <a href="./inicio_sesion.html" class="btn btn-primary">Iniciar sesión</a>
+                    <a href="./registration.html" class="btn btn-secondary">Crear cuenta</a>
+                </div>
+                <div class="hero-kpis">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Conductores activos</div>
+                        <div class="kpi-value">+140</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Viajes monitoreados</div>
+                        <div class="kpi-value">12.8K</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Respuesta promedio</div>
+                        <div class="kpi-value">&lt; 2 min</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="images/imagenes/camion_inicio.jpeg" alt="Imagen del sistema">
+            </div>
+        </section>
+
+        <div class="section-title">
+            <h2>Explora tu panel</h2>
+            <span class="tag">Contenido dinámico según el rol</span>
+        </div>
+        <p id="guest-feature-message" style="text-align: center;">Inicia sesión para acceder al panel correspondiente a tu rol.</p>
+        <div class="features-grid">
+            <div class="feature-card" data-role-card="conductor" style="display: none;">
+                <a class="feature-btn" href="./conductor.html">Panel Conductor →</a>
+                <ul>
+                    <li>Registrar disponibilidad y carrocería</li>
+                    <li>Actualizar estado y GPS del vehículo</li>
+                    <li>Confirmar cuando seas contratado</li>
+                </ul>
+            </div>
+            <div class="feature-card" data-role-card="despachador" style="display: none;">
+                <a class="feature-btn" href="./despachador.html">Panel Despachador →</a>
+                <ul>
+                    <li>Mapas con ubicación en tiempo real</li>
+                    <li>Contratación con notificaciones visibles</li>
+                    <li>Creación y seguimiento de viajes</li>
+                </ul>
+            </div>
+            <div class="feature-card" data-role-card="administrador" style="display: none;">
+                <a class="feature-btn" href="./administrador.html">Panel Administrador →</a>
+                <ul>
+                    <li>Validación y alta de usuarios</li>
+                    <li>Reportes de demanda y oferta</li>
+                    <li>Control de accesos y bitácora</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Listo para operar</h2>
+            <span class="tag">Hitos clave</span>
+        </div>
+        <div class="highlight-grid">
+            <div class="highlight-card">
+                <h3>Monitoreo en mapa</h3>
+                <p>Integramos Google Maps para visualizar flota, validar posición GPS y evitar ventanas emergentes.</p>
+            </div>
+            <div class="highlight-card">
+                <h3>Contratación transparente</h3>
+                <p>Alertas en pantalla informan a los conductores cuando son contratados y mantienen historial.</p>
+            </div>
+            <div class="highlight-card">
+                <h3>Flujos simples</h3>
+                <p>Botones de regreso al inicio en cada rol y acceso directo a tus tableros tras iniciar sesión.</p>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Cómo funciona</h2>
+            <span class="tag">3 pasos</span>
+        </div>
+        <div class="bento">
+            <div class="bento-card">
+                <h3>1. Publica tu disponibilidad</h3>
+                <p>Los conductores registran placa, carrocería y origen. El GPS envía coordenadas al mapa.</p>
+            </div>
+            <div class="bento-card">
+                <h3>2. Contrata sin fricción</h3>
+                <p>Despachadores ven la flota en vivo y envían solicitudes que llegan como notificaciones internas.</p>
+            </div>
+            <div class="bento-card">
+                <h3>3. Monitorea el viaje</h3>
+                <p>Estados en tiempo real, alertas visuales y retorno al inicio desde cualquier rol.</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

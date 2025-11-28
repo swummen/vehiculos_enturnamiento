@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Rutas - Sistema de Enturnamiento</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/footer.css">
+</head>
+
+<body>
+    <div id="header-container"></div>
+
+    <main class="main-content">
+        <div class="dashboard">
+            <div class="dashboard-header">
+                <h1>⚙️ Gestión de Ciudades y Rutas</h1>
+                <p>Administra el catálogo de ciudades y rutas disponibles en el sistema</p>
+            </div>
+
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-button active" onclick="openTab('ciudades', this)">
+                        🏙️ Ciudades
+                    </button>
+                    <button class="tab-button" onclick="openTab('rutas', this)">
+                        🛣️ Rutas
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB: CIUDADES -->
+            <div id="ciudades" class="tab-content active">
+                <div class="tab-header">
+                    <div>
+                        <h2>Gestión de Ciudades</h2>
+                        <p style="color: var(--text-secondary); margin: 4px 0 0;">Administra todas las ciudades disponibles</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="mostrarModalCiudad()">
+                        + Agregar Ciudad
+                    </button>
+                </div>
+
+                <div class="cities-list" id="cities-list">
+                    <div class="loading">Cargando ciudades...</div>
+                </div>
+            </div>
+
+            <!-- TAB: RUTAS -->
+            <div id="rutas" class="tab-content">
+                <div class="tab-header">
+                    <div>
+                        <h2>Gestión de Rutas</h2>
+                        <p style="color: var(--text-secondary); margin: 4px 0 0;">Administra todas las rutas disponibles</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="mostrarModalRuta()">
+                        + Agregar Ruta
+                    </button>
+                </div>
+
+                <div class="routes-list" id="routes-list">
+                    <div class="loading">Cargando rutas...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <!-- Modal para agregar/editar ciudad -->
+    <div id="ciudad-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:500px;">
+            <span class="close" onclick="cerrarModalCiudad()">&times;</span>
+            <h3 id="modal-ciudad-title">Agregar Ciudad</h3>
+            <form id="ciudad-form" onsubmit="guardarCiudad(event)">
+                <input type="hidden" id="ciudad-id">
+                
+                <div class="form-group">
+                    <label for="nombre-ciudad">Nombre de la Ciudad *</label>
+                    <input type="text" id="nombre-ciudad" placeholder="Ej: Bogotá" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="departamento">Departamento *</label>
+                    <input type="text" id="departamento" placeholder="Ej: Cundinamarca" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="codigo-ciudad">Código (Opcional)</label>
+                    <input type="text" id="codigo-ciudad" placeholder="Ej: BOG">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="cerrarModalCiudad()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Ciudad</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para agregar/editar ruta -->
+    <div id="ruta-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="cerrarModalRuta()">&times;</span>
+            <h3 id="modal-ruta-title">Agregar Ruta</h3>
+            <form id="ruta-form" onsubmit="guardarRuta(event)">
+                <input type="hidden" id="ruta-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="origen">Ciudad Origen *</label>
+                        <select id="origen" required>
+                            <option value="">Seleccionar origen</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="destino">Ciudad Destino *</label>
+                        <select id="destino" required>
+                            <option value="">Seleccionar destino</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="cerrarModalRuta()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Ruta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let ciudades = [];
+        let rutas = [];
+        let editingCiudad = null;
+        let editingRuta = null;
+
+        // Cargar datos iniciales
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!navigationSystem.ensureAuthenticated(['administrador'])) return;
+            
+            cargarCiudades();
+            cargarRutas();
+
+            // Recargar cada 30 segundos
+            setInterval(cargarCiudades, 30000);
+            setInterval(cargarRutas, 30000);
+        });
+
+        function openTab(tabName, btnElement) {
+            // Ocultar todos los tabs
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+
+            // Mostrar el tab seleccionado
+            document.getElementById(tabName).classList.add('active');
+            if (btnElement) btnElement.classList.add('active');
+        }
+
+        async function cargarCiudades() {
+            try {
+                const response = await API.request('/admin/cities');
+                if (response && response.success && Array.isArray(response.cities)) {
+                    ciudades = response.cities;
+                } else {
+                    ciudades = [];
+                }
+                actualizarListaCiudades();
+                actualizarSelectsCiudades();
+            } catch (error) {
+                console.error('Error cargando ciudades:', error);
+                notifications.show('Error al cargar ciudades', 'error');
+                ciudades = [];
+                actualizarListaCiudades();
+            }
+        }
+
+        async function cargarRutas() {
+            try {
+                const response = await API.request('/admin/routes');
+                
+                if (response.success && response.routes) {
+                    rutas = response.routes;
+                } else if (response.message && response.message.includes('no route')) {
+                    // Si el endpoint no existe, mostrar lista vacía
+                    rutas = [];
+                } else {
+                    rutas = [];
+                }
+                actualizarListaRutas();
+            } catch (error) {
+                console.error('Error cargando rutas:', error);
+                // No mostrar error si el endpoint no existe
+                rutas = [];
+                actualizarListaRutas();
+            }
+        }
+
+        function actualizarListaCiudades() {
+            const citiesList = document.getElementById('cities-list');
+            
+            if (ciudades.length === 0) {
+                citiesList.innerHTML = '<div class="empty-state">No hay ciudades registradas</div>';
+                return;
+            }
+
+            citiesList.innerHTML = `
+                <div class="data-table">
+                    <div class="table-header">
+                        <div class="col-1">Ciudad</div>
+                        <div class="col-2">Departamento</div>
+                        <div class="col-3">Código</div>
+                        <div class="col-4">Acciones</div>
+                    </div>
+                    ${ciudades.map(ciudad => `
+                        <div class="table-row">
+                            <div class="col-1"><strong>${ciudad.nombre}</strong></div>
+                            <div class="col-2">${ciudad.departamento}</div>
+                            <div class="col-3"><code>${ciudad.codigo}</code></div>
+                            <div class="col-4">
+                                <button class="btn btn-small" onclick="editarCiudad(${ciudad.id})">Editar</button>
+                                <button class="btn btn-small btn-danger" onclick="eliminarCiudad(${ciudad.id})">Eliminar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function actualizarListaRutas() {
+            const routesList = document.getElementById('routes-list');
+            
+            if (rutas.length === 0) {
+                routesList.innerHTML = '<div class="empty-state">No hay rutas registradas. Crea la primera ruta para comenzar.</div>';
+                return;
+            }
+
+            routesList.innerHTML = `
+                <div class="data-table">
+                    <div class="table-header">
+                        <div class="col-origen">Origen</div>
+                        <div class="col-destino">Destino</div>
+                        <div class="col-distancia">Distancia</div>
+                        <div class="col-tiempo">Tiempo</div>
+                        <div class="col-acciones">Acciones</div>
+                    </div>
+                    ${rutas.map(ruta => `
+                        <div class="table-row">
+                            <div class="col-origen">${ruta.ciudad_origen || ruta.origen || 'N/A'}</div>
+                            <div class="col-destino">${ruta.ciudad_destino || ruta.destino || 'N/A'}</div>
+                            <div class="col-distancia">${ruta.distancia_km || ruta.distancia || 0} km</div>
+                            <div class="col-tiempo">${ruta.tiempo_estimado_horas || ruta.tiempo || 0}h</div>
+                            <div class="col-acciones">
+                                <button class="btn btn-small" onclick="editarRuta(${ruta.id})">Editar</button>
+                                <button class="btn btn-small btn-danger" onclick="eliminarRuta(${ruta.id})">Eliminar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function actualizarSelectsCiudades() {
+            const origenSelect = document.getElementById('origen');
+            const destinoSelect = document.getElementById('destino');
+
+            const currentOrigen = origenSelect.value;
+            const currentDestino = destinoSelect.value;
+
+            origenSelect.innerHTML = '<option value="">Seleccionar origen</option>';
+            destinoSelect.innerHTML = '<option value="">Seleccionar destino</option>';
+
+            ciudades.forEach(ciudad => {
+                origenSelect.innerHTML += `<option value="${ciudad.id}">${ciudad.nombre}</option>`;
+                destinoSelect.innerHTML += `<option value="${ciudad.id}">${ciudad.nombre}</option>`;
+            });
+
+            if (currentOrigen) origenSelect.value = currentOrigen;
+            if (currentDestino) destinoSelect.value = currentDestino;
+        }
+
+        function mostrarModalCiudad() {
+            editingCiudad = null;
+            document.getElementById('modal-ciudad-title').textContent = 'Agregar Nueva Ciudad';
+            document.getElementById('ciudad-form').reset();
+            document.getElementById('ciudad-modal').style.display = 'block';
+        }
+
+        function mostrarModalRuta() {
+            editingRuta = null;
+            document.getElementById('modal-ruta-title').textContent = 'Agregar Nueva Ruta';
+            document.getElementById('ruta-form').reset();
+            document.getElementById('ruta-modal').style.display = 'block';
+        }
+
+        function cerrarModalCiudad() {
+            document.getElementById('ciudad-modal').style.display = 'none';
+            document.getElementById('ciudad-form').reset();
+            editingCiudad = null;
+        }
+
+        function cerrarModalRuta() {
+            document.getElementById('ruta-modal').style.display = 'none';
+            document.getElementById('ruta-form').reset();
+            editingRuta = null;
+        }
+
+        function editarCiudad(id) {
+            const ciudad = ciudades.find(c => c.id === id);
+            if (ciudad) {
+                editingCiudad = ciudad;
+                document.getElementById('modal-ciudad-title').textContent = 'Editar Ciudad';
+                document.getElementById('ciudad-id').value = ciudad.id;
+                document.getElementById('nombre-ciudad').value = ciudad.nombre;
+                document.getElementById('departamento').value = ciudad.departamento;
+                document.getElementById('codigo-ciudad').value = ciudad.codigo;
+                document.getElementById('ciudad-modal').style.display = 'block';
+            }
+        }
+
+        function editarRuta(id) {
+            const ruta = rutas.find(r => r.id === id);
+            if (ruta) {
+                editingRuta = ruta;
+                document.getElementById('modal-ruta-title').textContent = 'Editar Ruta';
+                document.getElementById('ruta-id').value = ruta.id;
+                document.getElementById('origen').value = ruta.ciudad_origen_id || ruta.origen_id || '';
+                document.getElementById('destino').value = ruta.ciudad_destino_id || ruta.destino_id || '';
+                document.getElementById('ruta-modal').style.display = 'block';
+            }
+        }
+
+        async function guardarCiudad(e) {
+            e.preventDefault();
+
+            const ciudadId = document.getElementById('ciudad-id').value;
+            const ciudadData = {
+                nombre: document.getElementById('nombre-ciudad').value,
+                departamento: document.getElementById('departamento').value,
+                codigo: document.getElementById('codigo-ciudad').value
+            };
+
+            try {
+                let response;
+                if (ciudadId) {
+                    // Actualizar ciudad existente
+                    response = await API.request(`/admin/cities/${ciudadId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(ciudadData)
+                    });
+                } else {
+                    // Crear nueva ciudad
+                    response = await API.request('/admin/cities', {
+                        method: 'POST',
+                        body: JSON.stringify(ciudadData)
+                    });
+                }
+
+                if (response.success) {
+                    notifications.show('✅ Ciudad guardada correctamente', 'success');
+                    cerrarModalCiudad();
+                    cargarCiudades();
+                } else {
+                    notifications.show('Error: ' + (response.message || 'Error al guardar'), 'error');
+                }
+            } catch (error) {
+                console.error('Error guardando ciudad:', error);
+                notifications.show('Error de conexión', 'error');
+            }
+        }
+
+        async function guardarRuta(e) {
+            e.preventDefault();
+
+            const rutaId = document.getElementById('ruta-id').value;
+            const rutaData = {
+                ciudad_origen_id: document.getElementById('origen').value,
+                ciudad_destino_id: document.getElementById('destino').value,
+                distancia: 0,
+                tiempo: 0
+            };
+
+            // Validación
+            if (!rutaData.ciudad_origen_id || !rutaData.ciudad_destino_id) {
+                notifications.show('Seleccione ciudad de origen y destino', 'warning');
+                return;
+            }
+
+            if (rutaData.ciudad_origen_id === rutaData.ciudad_destino_id) {
+                notifications.show('El origen y destino no pueden ser la misma ciudad', 'warning');
+                return;
+            }
+
+            try {
+                let response;
+                if (rutaId) {
+                    // Actualizar ruta existente
+                    response = await API.request(`/admin/routes/${rutaId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(rutaData)
+                    });
+                } else {
+                    // Crear nueva ruta
+                    response = await API.request('/admin/routes', {
+                        method: 'POST',
+                        body: JSON.stringify(rutaData)
+                    });
+                }
+
+                if (response.success) {
+                    notifications.show('✅ Ruta guardada correctamente', 'success');
+                    cerrarModalRuta();
+                    cargarRutas();
+                } else {
+                    notifications.show('Error: ' + (response.message || 'Error al guardar'), 'error');
+                }
+            } catch (error) {
+                console.error('Error guardando ruta:', error);
+                notifications.show('Error de conexión', 'error');
+            }
+        }
+
+        async function eliminarCiudad(id) {
+            if (!confirm('¿Está seguro de que desea eliminar esta ciudad? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const response = await API.request(`/admin/cities/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Ciudad eliminada correctamente', 'success');
+                    cargarCiudades();
+                } else {
+                    notifications.show('Error: ' + (response.message || 'Error al eliminar'), 'error');
+                }
+            } catch (error) {
+                console.error('Error eliminando ciudad:', error);
+                notifications.show('Error de conexión', 'error');
+            }
+        }
+
+        async function eliminarRuta(id) {
+            if (!confirm('¿Está seguro de que desea eliminar esta ruta? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const response = await API.request(`/admin/routes/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.success) {
+                    notifications.show('✅ Ruta eliminada correctamente', 'success');
+                    cargarRutas();
+                } else {
+                    notifications.show('Error: ' + (response.message || 'Error al eliminar'), 'error');
+                }
+            } catch (error) {
+                console.error('Error eliminando ruta:', error);
+                notifications.show('Error de conexión', 'error');
+            }
+        }
+
+        // Cerrar modales al hacer clic fuera
+        window.onclick = function (event) {
+            const ciudadModal = document.getElementById('ciudad-modal');
+            const rutaModal = document.getElementById('ruta-modal');
+
+            if (event.target === ciudadModal) {
+                ciudadModal.style.display = 'none';
+            }
+            if (event.target === rutaModal) {
+                rutaModal.style.display = 'none';
+            }
+        }
+    </script>
+
+    <style>
+        .tabs-container {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            padding: 16px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .tab-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-header h2 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .data-table {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            background: var(--background-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-header .col-1 { grid-column: span 1; }
+        .table-header .col-2 { grid-column: span 1; }
+        .table-header .col-3 { grid-column: span 1; }
+        .table-header .col-4 { grid-column: span 1; }
+
+        .routes-list .table-header {
+            grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1.5fr;
+        }
+
+        .routes-list .table-header .col-origen { grid-column: span 1; }
+        .routes-list .table-header .col-destino { grid-column: span 1; }
+        .routes-list .table-header .col-distancia { grid-column: span 1; }
+        .routes-list .table-header .col-tiempo { grid-column: span 1; }
+        .routes-list .table-header .col-acciones { grid-column: span 1; }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            transition: background 0.2s ease;
+        }
+
+        .table-row:hover {
+            background: var(--background-secondary);
+        }
+
+        .routes-list .table-row {
+            grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1.5fr;
+        }
+
+        .table-row code {
+            background: var(--background-secondary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin: 0 4px;
+        }
+
+        .btn-danger {
+            background: #F44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #D32F2F;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+        }
+
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .routes-list .table-header,
+            .routes-list .table-row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .table-row > div {
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</body>
+
+</html>
